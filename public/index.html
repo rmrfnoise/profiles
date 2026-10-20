@@ -8508,12 +8508,12 @@
           if (!genderSelect.value) genderSelect.value = idCardInfo.gender;
 
           const address = (person?.addresses || []).find((item) => item.kind === "户口所在地");
-          const regionParts = (idCardInfo.regionParts || []).slice(1);
+          const regionKey = (idCardInfo.regionParts || []).slice(1).pop() || "";
           const regionConflict = Boolean(
             idCardInfo.regionLoaded
-            && regionParts.length
+            && regionKey
             && address
-            && !regionParts.some((part) => address.text.includes(part))
+            && !address.text.includes(regionKey)
           );
 
           const messages = [];
