@@ -6649,7 +6649,13 @@
     .interest-item { display: inline-flex; align-items: center; gap: 5px; }
     .interest-item .record-actions { margin-left: 0; gap: 2px; }
     .interest-item .record-action { width: 24px; height: 24px; }
-    .custom-field { padding-right: 76px; grid-column: 1 / -1; }
+    .custom-field { padding-right: 78px; grid-column: 1 / -1; }
+    .custom-field-actions {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      margin-left: 0;
+    }
     .custom-field-remove {
       top: 7px;
       right: 7px;
@@ -7149,10 +7155,14 @@
       }
 
       function customFieldHtml(fieldItem) {
+        const target = fieldItem.target || "standalone";
         return `<div class="field custom-field">
           <dt class="field-label">${esc(fieldItem.name)}<span class="custom-badge">自定义</span></dt>
           <dd class="field-value">${esc(fieldItem.value)}</dd>
-          <button class="custom-field-remove" type="button" data-delete-custom="${fieldItem.id}" title="删除字段" aria-label="删除自定义字段 ${esc(fieldItem.name)}">${icons.trash}<span>删除</span></button>
+          <span class="record-actions custom-field-actions">
+            <button class="record-action" type="button" data-edit-custom="${fieldItem.id}" data-custom-target="${target}" title="编辑字段" aria-label="编辑自定义字段 ${esc(fieldItem.name)}">${icons.edit}</button>
+            <button class="record-action is-danger" type="button" data-delete-custom="${fieldItem.id}" title="删除字段" aria-label="删除自定义字段 ${esc(fieldItem.name)}">${icons.trash}</button>
+          </span>
         </div>`;
       }
 
@@ -7342,7 +7352,8 @@
               </span>
               <span class="social-note">${esc(social.note || "—")}</span>
               <span class="social-actions">
-                <button class="social-remove" type="button" data-delete-social="${index}" title="删除账号" aria-label="删除${esc(social.platform)}账号">${icons.trash}</button>
+                <button class="record-action" type="button" data-edit-social="${index}" title="编辑账号" aria-label="编辑${esc(social.platform)}账号">${icons.edit}</button>
+                <button class="record-action is-danger" type="button" data-delete-social="${index}" title="删除账号" aria-label="删除${esc(social.platform)}账号">${icons.trash}</button>
               </span>
             </div>`).join("")
           : `<div class="empty-inline">暂无社交账号</div>`;
@@ -7415,16 +7426,10 @@
         const custom = customFor(person, "basic");
         return `
           <dl class="detail-fields">
-            <div class="field">
-              <dt class="field-label">头像</dt>
-              <dd class="field-avatar-value">
-                <img class="avatar" src="${avatarData(person)}" alt="" width="28" height="28">
-              </dd>
-            </div>
             ${field("姓名", esc(person.name))}
             ${field("性别", esc(person.gender || "未知"))}
             ${field("出生日期", esc(formatBirthDate(person.birthDate)), { mono: true })}
-            ${field("年龄", `${ageText(person.birthDate)}${person.birthDate ? '<span class="auto-note">根据出生日期计算</span>' : ""}`)}
+            ${field("年龄", ageText(person.birthDate))}
             ${field("身份证号", esc(person.idCard || "未填写"), { mono: true })}
             ${field("备注", esc(person.note || "暂无备注"), { wide: true })}
           </dl>
@@ -7598,6 +7603,12 @@
           });
         });
 
+        document.querySelectorAll("[data-edit-social]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openSocialAccountModal(person, Number(button.dataset.editSocial));
+          });
+        });
+
         document.querySelectorAll("[data-edit-address]").forEach((button) => {
           button.addEventListener("click", () => {
             openAddressModal(person, Number(button.dataset.editAddress));
@@ -7654,6 +7665,12 @@
             if (index === -1) return;
             const [removed] = draft.customFields.splice(index, 1);
             updatePersonDraft(draft, "字段已删除。");
+          });
+        });
+
+        document.querySelectorAll("[data-edit-custom]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openCustomFieldModal(button.dataset.customTarget || "standalone", button.dataset.editCustom);
           });
         });
 
@@ -8844,20 +8861,22 @@
         });
       }
 
-      function openSocialAccountModal(person) {
+      function openSocialAccountModal(person, editIndex = -1) {
+        const existing = editIndex >= 0 ? person.socials[editIndex] : null;
+        const isEdit = Boolean(existing);
         const body = `<form class="modal-form" id="social-form" novalidate>
           <div class="form-grid">
             <label class="form-field">
               <span>平台名</span>
-              <input name="socialPlatform" type="text" maxlength="24" autocomplete="off">
+              <input name="socialPlatform" type="text" maxlength="24" autocomplete="off" value="${esc(existing?.platform || "")}">
             </label>
             <label class="form-field">
               <span>账号名</span>
-              <input name="socialHandle" type="text" maxlength="48" autocomplete="off">
+              <input name="socialHandle" type="text" maxlength="48" autocomplete="off" value="${esc(existing?.handle || "")}">
             </label>
             <label class="form-field full">
               <span>备注</span>
-              <input name="socialNote" type="text" maxlength="60" autocomplete="off">
+              <input name="socialNote" type="text" maxlength="60" autocomplete="off" value="${esc(existing?.note || "")}">
             </label>
           </div>
           <p class="form-error" id="social-form-error">请输入平台与账号名称以继续。</p>
@@ -8867,8 +8886,8 @@
           </div>
         </form>`;
         openModalShell({
-          kicker: "NEW SOCIAL",
-          title: "添加社交账号",
+          kicker: isEdit ? "EDIT SOCIAL" : "NEW SOCIAL",
+          title: isEdit ? "编辑社交账号" : "添加社交账号",
           bodyHtml: body
         });
         const form = document.getElementById("social-form");
@@ -8889,11 +8908,13 @@
           submitButton.disabled = true;
           try {
             const draft = draftPerson(person);
-            draft.socials.push({
+            const nextSocial = {
               platform,
               handle,
               note: form.elements.socialNote.value.trim()
-            });
+            };
+            if (isEdit) draft.socials[editIndex] = nextSocial;
+            else draft.socials.push(nextSocial);
             await persistPersonDraft(draft);
             await loadData();
             closeModal();
@@ -8904,7 +8925,7 @@
               renderDetailPage(fresh, { preserveScroll: true });
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
-            showToast("社交账号已添加。");
+            showToast(isEdit ? "社交账号已更新。" : "社交账号已添加。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
@@ -9084,28 +9105,34 @@
         });
       }
 
-      function openCustomFieldModal(target = "standalone") {
+      function openCustomFieldModal(target = "standalone", editFieldId = null) {
         const person = byId.get(state.currentDetailId);
         if (!person) return;
-        state.modalTarget = target;
+        const existing = editFieldId
+          ? (person.customFields || []).find((fieldItem) => fieldItem.id === editFieldId) || null
+          : null;
+        const isEdit = Boolean(existing);
+        const targetValue = (existing?.target || target) === "standalone"
+          ? "standalone"
+          : (existing?.target || target);
+        state.modalTarget = targetValue;
         modalLastFocus = document.activeElement;
-        const targetValue = target === "standalone" ? "standalone" : target;
         const option = (value, label) => `<option value="${value}" ${targetValue === value ? "selected" : ""}>${label}</option>`;
         const root = document.getElementById("modal-root");
         root.innerHTML = `<div class="modal-backdrop" data-modal-backdrop>
-          <section class="modal" role="dialog" aria-modal="true" aria-label="添加自定义字段">
+          <section class="modal" role="dialog" aria-modal="true" aria-label="${isEdit ? "编辑自定义字段" : "添加自定义字段"}">
             <div class="modal-head">
-              <p class="kicker">NEW FIELD</p>
+              <p class="kicker">${isEdit ? "EDIT FIELD" : "NEW FIELD"}</p>
               <button class="modal-close" type="button" data-close-modal aria-label="关闭">${icons.close}</button>
             </div>
             <form class="modal-form" id="custom-field-form" novalidate>
               <label class="form-field">
                 <span>字段名称</span>
-                <input name="fieldName" type="text" maxlength="24" autocomplete="off" required>
+                <input name="fieldName" type="text" maxlength="24" autocomplete="off" required value="${esc(existing?.name || "")}">
               </label>
               <label class="form-field">
                 <span>字段内容</span>
-                <textarea name="fieldValue" maxlength="240" required></textarea>
+                <textarea name="fieldValue" maxlength="240" required>${esc(existing?.value || "")}</textarea>
               </label>
               <label class="form-field">
                 <span>所属区块</span>
@@ -9152,12 +9179,18 @@
           submitButton.disabled = true;
           try {
             const draft = draftPerson(person);
-            draft.customFields.push({
-              id: `cf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+            const nextField = {
+              id: existing?.id || `cf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
               name,
               value,
               target
-            });
+            };
+            if (isEdit) {
+              const index = draft.customFields.findIndex((fieldItem) => fieldItem.id === existing.id);
+              if (index !== -1) draft.customFields[index] = nextField;
+            } else {
+              draft.customFields.push(nextField);
+            }
             await persistPersonDraft(draft);
             await loadData();
             const sectionKey = target === "standalone" ? "custom" : target;
@@ -9172,7 +9205,7 @@
                 document.querySelector(`[data-section="${sectionKey}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
               });
             }
-            showToast("字段已保存。");
+            showToast(isEdit ? "字段已更新。" : "字段已保存。");
           } catch (requestError) {
             error.textContent = requestError.message || "保存失败，请稍后重试。";
             error.classList.add("is-visible");
