@@ -6617,6 +6617,70 @@
       }
     }
 
+    .address-row { align-items: center; }
+    .address-row .address-text { flex: 1; min-width: 0; }
+    .record-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      flex: none;
+      margin-left: auto;
+    }
+    .record-action {
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: #fffdf8;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .record-action:hover {
+      border-color: #b8cbbd;
+      background: var(--accent-faint);
+      color: var(--accent-deep);
+    }
+    .record-action.is-danger:hover {
+      border-color: #d9b9ae;
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+    .record-action svg { width: 12px; height: 12px; }
+    .interest-item { display: inline-flex; align-items: center; gap: 5px; }
+    .interest-item .record-actions { margin-left: 0; gap: 2px; }
+    .interest-item .record-action { width: 24px; height: 24px; }
+    .custom-field { padding-right: 76px; }
+    .custom-field-remove {
+      top: 7px;
+      right: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: auto;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 10px;
+      opacity: 1;
+      transform: none;
+    }
+    .custom-field-remove:hover {
+      border-color: #d9b9ae;
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+    .custom-field-remove svg { width: 13px; height: 13px; }
+
   </style>
 </head>
 <body>
@@ -7109,7 +7173,7 @@
         return `<div class="field custom-field">
           <dt class="field-label">${esc(fieldItem.name)}<span class="custom-badge">自定义</span></dt>
           <dd class="field-value">${esc(fieldItem.value)}</dd>
-          <button class="custom-field-remove" type="button" data-delete-custom="${fieldItem.id}" title="删除字段" aria-label="删除自定义字段 ${esc(fieldItem.name)}">${icons.close}</button>
+          <button class="custom-field-remove" type="button" data-delete-custom="${fieldItem.id}" title="删除字段" aria-label="删除自定义字段 ${esc(fieldItem.name)}">${icons.trash}<span>删除</span></button>
         </div>`;
       }
 
@@ -7327,12 +7391,16 @@
 
       function addressSectionContent(person) {
         const addresses = person.addresses.length
-          ? `<div class="address-list">${person.addresses.map((address) => `<div class="address-row">
+          ? `<div class="address-list">${person.addresses.map((address, index) => `<div class="address-row">
               <span class="address-badges">
                 <span class="addr-mark">${esc(address.kind || "地址")}</span>
                 ${address.note ? `<span class="addr-kind">${esc(address.note)}</span>` : ""}
               </span>
               <p class="address-text">${esc(address.text)}</p>
+              <span class="record-actions">
+                <button class="record-action" type="button" data-edit-address="${index}" title="编辑地址" aria-label="编辑地址">${icons.edit}</button>
+                <button class="record-action is-danger" type="button" data-delete-address="${index}" title="删除地址" aria-label="删除地址">${icons.trash}</button>
+              </span>
             </div>`).join("")}</div>`
           : `<div class="empty-inline">暂无地址</div>`;
         const custom = customFor(person, "address");
@@ -7347,7 +7415,13 @@
               <dt class="field-label">兴趣爱好</dt>
               <dd class="field-value">
                 <div class="interest-line" data-interest-list>
-                  ${person.interests.map((interest) => `<span class="interest-item">${esc(interest)}</span>`).join("")}
+                  ${person.interests.map((interest, index) => `<span class="interest-item">
+                    <span class="interest-text">${esc(interest)}</span>
+                    <span class="record-actions">
+                      <button class="record-action" type="button" data-edit-interest="${index}" title="编辑兴趣" aria-label="编辑兴趣 ${esc(interest)}">${icons.edit}</button>
+                      <button class="record-action is-danger" type="button" data-delete-interest="${index}" title="删除兴趣" aria-label="删除兴趣 ${esc(interest)}">${icons.trash}</button>
+                    </span>
+                  </span>`).join("")}
                 </div>
                 ${person.interests.length ? "" : `<p class="empty-inline interest-empty" style="margin-top:4px">暂无兴趣</p>`}
               </dd>
@@ -7535,6 +7609,38 @@
             const [social] = draft.socials.splice(index, 1);
             if (!social) return;
             updatePersonDraft(draft, "社交账号已删除。");
+          });
+        });
+
+        document.querySelectorAll("[data-edit-address]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openAddressModal(person, Number(button.dataset.editAddress));
+          });
+        });
+
+        document.querySelectorAll("[data-delete-address]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.deleteAddress);
+            const draft = draftPerson(person);
+            const [address] = draft.addresses.splice(index, 1);
+            if (!address) return;
+            updatePersonDraft(draft, "地址已删除。");
+          });
+        });
+
+        document.querySelectorAll("[data-edit-interest]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openInterestModal(person, Number(button.dataset.editInterest));
+          });
+        });
+
+        document.querySelectorAll("[data-delete-interest]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.deleteInterest);
+            const draft = draftPerson(person);
+            const [interest] = draft.interests.splice(index, 1);
+            if (typeof interest !== "string") return;
+            updatePersonDraft(draft, "兴趣已删除。");
           });
         });
 
@@ -8512,30 +8618,34 @@
         });
       }
 
-      function openAddressModal(person) {
+      function openAddressModal(person, editIndex = -1) {
+        const existing = editIndex >= 0 ? person.addresses[editIndex] : null;
+        const isEdit = Boolean(existing);
+        const knownKinds = ["住址", "快递地址", "户口所在地", "工作地址"];
+        const isCustomKind = Boolean(existing && !knownKinds.includes(existing.kind));
         const body = `<form class="modal-form" id="address-form" novalidate>
           <div class="form-grid">
             <label class="form-field full">
               <span>地址</span>
-              <textarea name="addressText" maxlength="160" required></textarea>
+              <textarea name="addressText" maxlength="160" required>${esc(existing?.text || "")}</textarea>
             </label>
             <label class="form-field">
               <span>类型</span>
               <select name="addressKind">
-                <option value="住址">住址</option>
-                <option value="快递地址">快递地址</option>
-                <option value="户口所在地">户口所在地</option>
-                <option value="工作地址">工作地址</option>
-                <option value="自定义输入">自定义类型</option>
+                <option value="住址" ${!isCustomKind && (!existing || existing.kind === "住址") ? "selected" : ""}>住址</option>
+                <option value="快递地址" ${existing?.kind === "快递地址" ? "selected" : ""}>快递地址</option>
+                <option value="户口所在地" ${existing?.kind === "户口所在地" ? "selected" : ""}>户口所在地</option>
+                <option value="工作地址" ${existing?.kind === "工作地址" ? "selected" : ""}>工作地址</option>
+                <option value="自定义输入" ${isCustomKind ? "selected" : ""}>自定义类型</option>
               </select>
             </label>
             <label class="form-field">
               <span>地址备注</span>
-              <input name="addressNote" type="text" maxlength="60" autocomplete="off">
+              <input name="addressNote" type="text" maxlength="60" autocomplete="off" value="${esc(existing?.note || "")}">
             </label>
-            <label class="form-field full" data-custom-address-kind hidden>
+            <label class="form-field full" data-custom-address-kind ${isCustomKind ? "" : "hidden"}>
               <span>自定义类型</span>
-              <input name="customAddressKind" type="text" maxlength="20" autocomplete="off">
+              <input name="customAddressKind" type="text" maxlength="20" autocomplete="off" value="${esc(isCustomKind ? existing.kind : "")}">
             </label>
           </div>
           <p class="form-error" id="address-form-error">请填写地址以继续。</p>
@@ -8545,8 +8655,8 @@
           </div>
         </form>`;
         openModalShell({
-          kicker: "NEW ADDRESS",
-          title: "添加地址",
+          kicker: isEdit ? "EDIT ADDRESS" : "NEW ADDRESS",
+          title: isEdit ? "编辑地址" : "添加地址",
           bodyHtml: body
         });
         const form = document.getElementById("address-form");
@@ -8586,11 +8696,13 @@
           submitButton.disabled = true;
           try {
             const draft = draftPerson(person);
-            draft.addresses.push({
+            const nextAddress = {
               kind,
               note: form.elements.addressNote.value.trim(),
               text
-            });
+            };
+            if (isEdit) draft.addresses[editIndex] = nextAddress;
+            else draft.addresses.push(nextAddress);
             await persistPersonDraft(draft);
             await loadData();
             closeModal();
@@ -8601,7 +8713,7 @@
               renderDetailPage(fresh, { preserveScroll: true });
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
-            showToast("地址已添加。");
+            showToast(isEdit ? "地址已更新。" : "地址已添加。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
@@ -8609,11 +8721,13 @@
         });
       }
 
-      function openInterestModal(person) {
+      function openInterestModal(person, editIndex = -1) {
+        const existing = editIndex >= 0 ? person.interests[editIndex] : null;
+        const isEdit = typeof existing === "string";
         const body = `<form class="modal-form" id="interest-form" novalidate>
           <label class="form-field">
             <span>兴趣</span>
-            <input name="interestValue" type="text" maxlength="24" autocomplete="off">
+            <input name="interestValue" type="text" maxlength="24" autocomplete="off" value="${esc(existing || "")}">
           </label>
           <p class="form-error" id="interest-form-error">请输入兴趣名称以继续。</p>
           <div class="modal-actions">
@@ -8622,8 +8736,8 @@
           </div>
         </form>`;
         openModalShell({
-          kicker: "NEW INTEREST",
-          title: "添加兴趣",
+          kicker: isEdit ? "EDIT INTEREST" : "NEW INTEREST",
+          title: isEdit ? "编辑兴趣" : "添加兴趣",
           bodyHtml: body
         });
         const form = document.getElementById("interest-form");
@@ -8639,7 +8753,7 @@
             input.focus();
             return;
           }
-          if (person.interests.some((interest) => interest.trim() === value)) {
+          if (person.interests.some((interest, index) => index !== editIndex && interest.trim() === value)) {
             setModalError(error, "该兴趣已存在。");
             input.select();
             return;
@@ -8648,7 +8762,8 @@
           submitButton.disabled = true;
           try {
             const draft = draftPerson(person);
-            draft.interests.push(value);
+            if (isEdit) draft.interests[editIndex] = value;
+            else draft.interests.push(value);
             await persistPersonDraft(draft);
             await loadData();
             closeModal();
@@ -8659,7 +8774,7 @@
               renderDetailPage(fresh, { preserveScroll: true });
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
-            showToast("兴趣已添加。");
+            showToast(isEdit ? "兴趣已更新。" : "兴趣已添加。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
