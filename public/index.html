@@ -6764,6 +6764,96 @@
       color: var(--danger);
     }
     .interest-tag-action svg { width: 11px; height: 11px; }
+    .benming-tag {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 4px;
+      padding: 1px 4px;
+      border: 1px solid #d9b9ae;
+      border-radius: 2px;
+      background: #fbf0ec;
+      color: #a64736;
+      font-family: var(--sans);
+      font-size: 9px;
+      font-weight: 500;
+      line-height: 1.35;
+      letter-spacing: 0;
+      vertical-align: 1px;
+    }
+
+    @media print {
+      @page { size: A4 portrait; margin: 12mm; }
+
+      body.print-mode { background: #ffffff; }
+      body.print-mode .site-header,
+      body.print-mode .site-footer,
+      body.print-mode .detail-toolbar,
+      body.print-mode .section-chevron,
+      body.print-mode .field-add,
+      body.print-mode .record-actions,
+      body.print-mode .social-actions,
+      body.print-mode .interest-tag-actions,
+      body.print-mode .subsection-head-actions,
+      body.print-mode .relations-card .text-button,
+      body.print-mode .relations-add-btn,
+      body.print-mode .side-note,
+      body.print-mode .side-link,
+      body.print-mode .toast,
+      body.print-mode .skip-link,
+      body.print-mode #modal-root {
+        display: none !important;
+      }
+      body.print-mode .page { padding: 0 !important; }
+      body.print-mode .app-shell {
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      body.print-mode .profile-hero {
+        margin-bottom: 8mm;
+        border: 1px solid #d9d0c0;
+        box-shadow: none;
+        break-inside: avoid;
+      }
+      body.print-mode .detail-grid {
+        display: block !important;
+      }
+      body.print-mode .detail-side { margin-top: 8mm; }
+      body.print-mode .profile-section {
+        margin-bottom: 5mm;
+        box-shadow: none;
+        break-inside: avoid;
+      }
+      body.print-mode .section-toggle {
+        min-height: 0;
+        padding: 3mm 0 2mm;
+        cursor: default;
+      }
+      body.print-mode .section-body {
+        display: block !important;
+        grid-template-rows: 1fr !important;
+        opacity: 1 !important;
+      }
+      body.print-mode .section-body-inner { overflow: visible !important; }
+      body.print-mode .section-content { padding: 0 0 4mm !important; }
+      body.print-mode .social-row {
+        grid-template-columns: 28px minmax(0, 1fr) 70px !important;
+        break-inside: avoid;
+      }
+      body.print-mode .address-row,
+      body.print-mode .interest-tag,
+      body.print-mode .custom-field { break-inside: avoid; }
+      body.print-mode .custom-field { padding-right: 0 !important; }
+      body.print-mode .relations-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+      body.print-mode * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
 
   </style>
 </head>
@@ -6866,6 +6956,7 @@
         fit: icon('<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path>'),
         edit: icon('<path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>'),
         trash: icon('<path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v5M14 11v5"></path>'),
+        print: icon('<path d="M6 9V3h12v6"></path><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"></path><path d="M6 14h12v7H6z"></path>'),
         userPlus: icon('<circle cx="9" cy="8" r="3.5"></circle><path d="M3 21c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M19 8v6M16 11h6"></path>'),
         camera: icon('<path d="M4 7h3l1.5-2h7L17 7h3v12H4Z"></path><circle cx="12" cy="13" r="3.2"></circle>'),
         fullscreen: icon('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>'),
@@ -7498,11 +7589,12 @@
 
       function basicSectionContent(person) {
         const custom = customFor(person, "basic");
-        const birthDerived = [
-          person.lunarBirthday,
-          person.zodiac ? `属${person.zodiac}` : "",
-          person.constellation
-        ].filter(Boolean);
+        const birthDerived = [];
+        if (person.lunarBirthday) birthDerived.push(esc(person.lunarBirthday));
+        if (person.zodiac) {
+          birthDerived.push(`属${esc(person.zodiac)}${person.isBenmingNian ? '<span class="benming-tag">本命年</span>' : ""}`);
+        }
+        if (person.constellation) birthDerived.push(esc(person.constellation));
         const regionHint = person.idRegionPrecision === "city"
           ? "仅识别到市级"
           : person.idRegionPrecision === "province"
@@ -7514,7 +7606,7 @@
           <dl class="detail-fields">
             ${field("姓名", esc(person.name))}
             ${field("性别", esc(person.gender || "未知"))}
-            ${field("出生日期", `${esc(formatBirthDate(person.birthDate))}${birthDerived.length ? `<span class="birth-derived">${birthDerived.map(esc).join(" · ")}</span>` : ""}`)}
+            ${field("出生日期", `${esc(formatBirthDate(person.birthDate))}${birthDerived.length ? `<span class="birth-derived">${birthDerived.join(" · ")}</span>` : ""}`)}
             ${field("年龄", ageText(person.birthDate))}
             ${field("身份证号", esc(person.idCard || "未填写"), { mono: true })}
             ${person.idCard ? field("首次申领户籍地", `${esc(person.idRegion || "未识别")}${person.idRegion ? `<span class="field-derived">${esc(regionHint)}</span>` : ""}`) : ""}
@@ -7564,6 +7656,41 @@
         <div class="side-note"><p>关系变更会同步反映在关系图中。</p></div>`;
       }
 
+      function printProfile() {
+        const sections = [...document.querySelectorAll(".detail-page .profile-section")];
+        const states = sections.map((section) => ({
+          section,
+          open: section.classList.contains("is-open")
+        }));
+        sections.forEach((section) => {
+          section.classList.add("is-open");
+          const toggle = section.querySelector("[data-section-toggle]");
+          if (toggle) toggle.setAttribute("aria-expanded", "true");
+          const inner = section.querySelector(".section-body-inner");
+          if (inner) {
+            inner.removeAttribute("inert");
+            inner.setAttribute("aria-hidden", "false");
+          }
+        });
+        document.body.classList.add("print-mode");
+        const restore = () => {
+          document.body.classList.remove("print-mode");
+          states.forEach(({ section, open }) => {
+            section.classList.toggle("is-open", open);
+            const toggle = section.querySelector("[data-section-toggle]");
+            if (toggle) toggle.setAttribute("aria-expanded", String(open));
+            const inner = section.querySelector(".section-body-inner");
+            if (inner) {
+              inner.toggleAttribute("inert", !open);
+              inner.setAttribute("aria-hidden", String(!open));
+            }
+          });
+          window.removeEventListener("afterprint", restore);
+        };
+        window.addEventListener("afterprint", restore, { once: true });
+        window.print();
+      }
+
       function renderDetailPage(person, options = {}) {
         state.currentDetailId = person.id;
         document.getElementById("app").innerHTML = `
@@ -7573,6 +7700,7 @@
                 <a class="back-link" href="#/people">${icons.back} 返回全部档案</a>
                 <div class="detail-toolbar-actions">
                   <a class="ghost-btn" href="#/graph?person=${person.id}">${icons.graph} 关系图</a>
+                  <button class="ghost-btn" type="button" data-print-profile title="打印或另存为 PDF">${icons.print} 打印</button>
                   <button class="ghost-btn" type="button" data-edit-person>${icons.edit} 编辑</button>
                   <button class="ghost-btn is-danger" type="button" data-delete-person>${icons.trash} 删除</button>
                 </div>
@@ -7768,6 +7896,8 @@
         document.querySelector("[data-edit-person]")?.addEventListener("click", () => {
           openPersonForm("edit", person);
         });
+
+        document.querySelector("[data-print-profile]")?.addEventListener("click", printProfile);
 
         document.querySelector("[data-delete-person]")?.addEventListener("click", () => {
           openDeletePersonModal(person);

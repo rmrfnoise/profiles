@@ -117,16 +117,34 @@ function parseIdCardDetails(value) {
   };
 }
 
+let currentZodiacCache = { key: "", value: "" };
+
+function currentZodiac() {
+  const now = new Date();
+  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  if (currentZodiacCache.key !== key) {
+    try {
+      const solar = Solar.fromYmd(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      currentZodiacCache = { key, value: solar.getLunar().getYearShengXiao() };
+    } catch {
+      currentZodiacCache = { key, value: "" };
+    }
+  }
+  return currentZodiacCache.value;
+}
+
 function birthMeta(birthDate) {
   if (!isValidIsoBirthDate(birthDate)) return {};
   const [year, month, day] = birthDate.split("-").map(Number);
   try {
     const solar = Solar.fromYmd(year, month, day);
     const lunar = solar.getLunar();
+    const zodiac = lunar.getYearShengXiao();
     return {
       lunarBirthday: `农历${lunar.getYearInGanZhi()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,
-      zodiac: lunar.getYearShengXiao(),
-      constellation: `${solar.getXingZuo()}座`
+      zodiac,
+      constellation: `${solar.getXingZuo()}座`,
+      isBenmingNian: Boolean(zodiac && zodiac === currentZodiac())
     };
   } catch {
     return {};
