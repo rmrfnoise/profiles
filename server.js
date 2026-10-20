@@ -176,27 +176,6 @@ function normalizePersonInput(input = {}, fallback = {}) {
   const name = cleanString(pick("name"), 200);
   let contacts = sanitizeContacts(pick("contacts"));
 
-  if (!contacts.length) {
-    const phone = digitsOnly(pick("phone"));
-    const email = cleanString(pick("email"), 320);
-    if (phone) {
-      contacts.push({
-        id: `contact-phone-${Date.now().toString(36)}`,
-        type: "phone",
-        value: phone,
-        note: "主号"
-      });
-    }
-    if (email) {
-      contacts.push({
-        id: `contact-email-${Date.now().toString(36)}`,
-        type: "email",
-        value: email,
-        note: "常用"
-      });
-    }
-  }
-
   return {
     name,
     gender: cleanString(pick("gender"), 30),
@@ -219,10 +198,10 @@ function rowToPerson(row) {
   let contacts = sanitizeContacts(row.contacts);
   if (!contacts.length && (row.phone || row.email)) {
     if (row.phone) {
-      contacts.push({ id: `contact-phone-${row.id}`, type: "phone", value: row.phone, note: "主号" });
+      contacts.push({ id: `contact-phone-${row.id}`, type: "phone", value: row.phone, note: "" });
     }
     if (row.email) {
-      contacts.push({ id: `contact-email-${row.id}`, type: "email", value: row.email, note: "常用" });
+      contacts.push({ id: `contact-email-${row.id}`, type: "email", value: row.email, note: "" });
     }
   }
   const socials = sanitizeSocials(row.socials);

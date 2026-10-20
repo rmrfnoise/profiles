@@ -2180,10 +2180,6 @@
     .avatar-editor-actions .ghost-btn { height: 30px; font-size: 10.5px; }
     .avatar-editor-actions .ghost-btn svg { width: 13px; height: 13px; }
     .avatar-editor-actions .text-button { font-size: 10px; }
-    .form-field input[name="phone"] {
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.02em;
-    }
 
     .social-actions {
       display: inline-flex;
@@ -7083,23 +7079,6 @@
         return `contact-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       }
 
-      function setPrimaryContact(contacts, type, rawValue, defaultNote) {
-        const value = type === "phone"
-          ? String(rawValue || "").replace(/\D/g, "").slice(0, 11)
-          : String(rawValue || "").trim();
-        const index = contacts.findIndex((contact) => contact.type === type);
-        if (!value) {
-          if (index !== -1) contacts.splice(index, 1);
-          return contacts;
-        }
-        if (index !== -1) {
-          contacts[index] = { ...contacts[index], value };
-        } else {
-          contacts.push({ id: makeContactId(), type, value, note: defaultNote });
-        }
-        return contacts;
-      }
-
       function personPayload(person) {
         const contacts = (person.contacts || []).map((contact) => ({ ...contact }));
         return {
@@ -7347,7 +7326,8 @@
                 </span>
                 <span class="social-note">${esc(contact.note || "—")}</span>
                 <span class="social-actions">
-                  <button class="social-remove" type="button" data-delete-contact="${contact.id}" title="删除联系方式" aria-label="删除${typeLabel} ${esc(contact.value)}">${icons.trash}</button>
+                  <button class="record-action" type="button" data-edit-contact="${contact.id}" title="编辑联系方式" aria-label="编辑${typeLabel} ${esc(contact.value)}">${icons.edit}</button>
+                  <button class="record-action is-danger" type="button" data-delete-contact="${contact.id}" title="删除联系方式" aria-label="删除${typeLabel} ${esc(contact.value)}">${icons.trash}</button>
                 </span>
               </div>`;
             }).join("")
@@ -7590,6 +7570,12 @@
           button.addEventListener("click", (event) => {
             event.stopPropagation();
             openSocialAccountModal(person);
+          });
+        });
+
+        document.querySelectorAll("[data-edit-contact]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openContactModal(person, button.dataset.editContact);
           });
         });
 
@@ -8409,14 +8395,6 @@
               <input name="birthDate" type="text" autocomplete="off" value="${esc(person?.birthDate || "")}" aria-label="出生日期">
             </label>
             <label class="form-field">
-              <span>手机号</span>
-              <input name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="11" autocomplete="off" value="${esc(person?.phone || "")}">
-            </label>
-            <label class="form-field">
-              <span>邮箱</span>
-              <input name="email" type="email" maxlength="80" autocomplete="off" value="${esc(person?.email || "")}">
-            </label>
-            <label class="form-field">
               <span>身份证号</span>
               <input name="idCard" type="text" maxlength="18" spellcheck="false" autocomplete="off" value="${esc(person?.idCard || "")}">
             </label>
@@ -8440,7 +8418,6 @@
         const form = document.getElementById("person-form");
         const error = document.getElementById("person-form-error");
         const nameInput = form.elements.name;
-        const phoneInput = form.elements.phone;
         const avatarPreview = document.getElementById("avatar-preview");
         form.elements.birthDate.addEventListener("blur", () => {
           const normalized = parseBirthDateValue(form.elements.birthDate.value);
@@ -8458,11 +8435,6 @@
 
         nameInput.addEventListener("input", () => {
           if (!pendingAvatar) refreshAvatarPreview();
-        });
-
-        phoneInput.addEventListener("input", () => {
-          const digits = phoneInput.value.replace(/\D/g, "").slice(0, 11);
-          if (phoneInput.value !== digits) phoneInput.value = digits;
         });
 
         changeAvatar.addEventListener("click", () => avatarFile.click());
@@ -8518,8 +8490,6 @@
           const gender = form.elements.gender.value;
           const rawBirthDate = form.elements.birthDate.value.trim();
           const birthDate = parseBirthDateValue(rawBirthDate);
-          const phone = form.elements.phone.value.replace(/\D/g, "").slice(0, 11);
-          const email = form.elements.email.value.trim();
           const idCard = form.elements.idCard.value.trim().toUpperCase();
           const note = form.elements.note.value.trim();
           const submitButton = form.querySelector('button[type="submit"]');
@@ -8532,16 +8502,6 @@
           if (rawBirthDate && birthDate === null) {
             setModalError(error, "请填写正确的出生日期。");
             form.elements.birthDate.focus();
-            return;
-          }
-          if (phone && !isValidMobile(phone)) {
-            setModalError(error, "请填写正确的手机号。");
-            form.elements.phone.focus();
-            return;
-          }
-          if (email && !isValidEmail(email)) {
-            setModalError(error, "请填写正确的邮箱。");
-            form.elements.email.focus();
             return;
           }
           if (idCard && !isValidChineseIdCard(idCard)) {
@@ -8557,14 +8517,10 @@
           try {
             if (isEdit) {
               const draft = draftPerson(person);
-              setPrimaryContact(draft.contacts, "phone", phone, "主号");
-              setPrimaryContact(draft.contacts, "email", email, "常用");
               Object.assign(draft, {
                 name,
                 gender,
                 birthDate,
-                phone,
-                email,
                 idCard,
                 note,
                 avatar: pendingAvatar
@@ -8583,20 +8539,15 @@
               return;
             }
 
-            const contacts = [];
-            setPrimaryContact(contacts, "phone", phone, "主号");
-            setPrimaryContact(contacts, "email", email, "常用");
             const created = await apiRequest("/api/people", {
               method: "POST",
               body: JSON.stringify({
                 name,
                 gender,
                 birthDate,
-                phone,
-                email,
                 idCard,
                 note,
-                contacts,
+                contacts: [],
                 avatar: pendingAvatar,
                 socials: [],
                 addresses: [],
@@ -8782,23 +8733,28 @@
         });
       }
 
-      function openContactModal(person) {
+      function openContactModal(person, editContactId = null) {
+        const existing = editContactId
+          ? (person.contacts || []).find((contact) => contact.id === editContactId) || null
+          : null;
+        const isEdit = Boolean(existing);
+        const initialType = existing?.type === "email" ? "email" : "phone";
         const body = `<form class="modal-form" id="contact-form" novalidate>
           <div class="form-grid">
             <label class="form-field">
               <span>类型</span>
               <select name="contactType">
-                <option value="phone">手机号</option>
-                <option value="email">邮箱</option>
+                <option value="phone" ${initialType === "phone" ? "selected" : ""}>手机号</option>
+                <option value="email" ${initialType === "email" ? "selected" : ""}>邮箱</option>
               </select>
             </label>
             <label class="form-field">
               <span>标签</span>
-              <input name="contactNote" type="text" maxlength="60" autocomplete="off">
+              <input name="contactNote" type="text" maxlength="60" autocomplete="off" value="${esc(existing?.note || "")}">
             </label>
             <label class="form-field full">
               <span>联系方式</span>
-              <input name="contactValue" type="tel" inputmode="numeric" maxlength="11" autocomplete="off">
+              <input name="contactValue" type="${initialType === "email" ? "email" : "tel"}" inputmode="${initialType === "email" ? "email" : "numeric"}" maxlength="${initialType === "email" ? 120 : 11}" autocomplete="off" value="${esc(existing?.value || "")}">
             </label>
           </div>
           <p class="form-error" id="contact-form-error">请输入联系方式以继续。</p>
@@ -8808,8 +8764,8 @@
           </div>
         </form>`;
         openModalShell({
-          kicker: "NEW CONTACT",
-          title: "添加联系方式",
+          kicker: isEdit ? "EDIT CONTACT" : "NEW CONTACT",
+          title: isEdit ? "编辑联系方式" : "添加联系方式",
           bodyHtml: body
         });
         const form = document.getElementById("contact-form");
@@ -8858,12 +8814,18 @@
           submitButton.disabled = true;
           try {
             const draft = draftPerson(person);
-            draft.contacts.push({
-              id: makeContactId(),
+            const nextContact = {
+              id: existing?.id || makeContactId(),
               type,
               value: type === "phone" ? value.replace(/\D/g, "") : value,
               note: form.elements.contactNote.value.trim()
-            });
+            };
+            if (isEdit) {
+              const index = draft.contacts.findIndex((contact) => contact.id === existing.id);
+              if (index !== -1) draft.contacts[index] = nextContact;
+            } else {
+              draft.contacts.push(nextContact);
+            }
             await persistPersonDraft(draft);
             await loadData();
             closeModal();
@@ -8874,7 +8836,7 @@
               renderDetailPage(fresh, { preserveScroll: true });
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
-            showToast("联系方式已添加。");
+            showToast(isEdit ? "联系方式已更新。" : "联系方式已添加。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
