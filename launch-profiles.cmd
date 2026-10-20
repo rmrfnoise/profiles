@@ -6,13 +6,20 @@ set "NODE_EXE=node"
 where node >nul 2>nul
 if errorlevel 1 (
   echo [Profiles] Node.js was not found.
-  echo Install Node.js 20 or newer, then try again.
+  echo Install Node.js 24 or newer, then try again.
+  pause
+  exit /b 1
+)
+
+"%NODE_EXE%" -e "process.exit(Number(process.versions.node.split('.')[0]) >= 24 ? 0 : 1)"
+if errorlevel 1 (
+  echo [Profiles] Node.js 24 or newer is required.
+  "%NODE_EXE%" --version
   pause
   exit /b 1
 )
 
 if not exist "node_modules\express\package.json" goto install
-if not exist "node_modules\better-sqlite3\package.json" goto install
 goto start
 
 :install
@@ -25,7 +32,7 @@ goto start
 
 :npm_missing
 echo [Profiles] npm was not found.
-echo Install Node.js 20 or newer, then try again.
+echo Install Node.js 24 or newer, then try again.
 pause
 exit /b 1
 

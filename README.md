@@ -25,7 +25,7 @@ node server.js
 
 打开 `http://localhost:3000`。
 
-需要 Node.js 20 或更高版本。
+需要 Node.js 24 或更高版本。
 
 ## 数据
 

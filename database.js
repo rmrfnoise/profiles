@@ -2,7 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const Database = require("better-sqlite3");
+const { DatabaseSync } = require("node:sqlite");
 
 const defaultPath = path.join(__dirname, "data", "profiles.db");
 const databasePath = process.env.DB_PATH
@@ -11,11 +11,11 @@ const databasePath = process.env.DB_PATH
 
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
-const db = new Database(databasePath);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+const raw = new DatabaseSync(databasePath);
+raw.exec("PRAGMA journal_mode = WAL;");
+raw.exec("PRAGMA foreign_keys = ON;");
 
-db.exec(`
+raw.exec(`
   CREATE TABLE IF NOT EXISTS people (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -57,5 +57,24 @@ db.exec(`
       CASE WHEN person_a_id < person_b_id THEN person_b_id ELSE person_a_id END
     );
 `);
+
+const db = {
+  prepare: (sql) => raw.prepare(sql),
+  exec: (sql) => raw.exec(sql),
+  transaction: (fn) => (...args) => {
+    raw.exec("BEGIN");
+    try {
+      const result = fn(...args);
+      raw.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try {
+        raw.exec("ROLLBACK");
+      } catch {}
+      throw error;
+    }
+  },
+  close: () => raw.close()
+};
 
 module.exports = db;
