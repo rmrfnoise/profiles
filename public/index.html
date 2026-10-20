@@ -6764,27 +6764,6 @@
       color: var(--danger);
     }
     .interest-tag-action svg { width: 11px; height: 11px; }
-    .benming-tag {
-      display: inline-flex;
-      align-items: center;
-      margin-left: 4px;
-      padding: 1px 4px;
-      border: 1px solid #d9b9ae;
-      border-radius: 2px;
-      background: #fbf0ec;
-      color: #a64736;
-      font-family: var(--sans);
-      font-size: 9px;
-      font-weight: 500;
-      line-height: 1.35;
-      letter-spacing: 0;
-      vertical-align: 1px;
-    }
-    .benming-tag.is-muted {
-      border-color: var(--line);
-      background: #f7f3ea;
-      color: var(--muted);
-    }
 
     @media print {
       @page { size: A4 portrait; margin: 12mm; }
@@ -6841,7 +6820,7 @@
         opacity: 1 !important;
       }
       body.print-mode .section-body-inner { overflow: visible !important; }
-      body.print-mode .section-content { padding: 0 0 4mm !important; }
+      body.print-mode .section-content { padding: 0 7mm 5mm !important; }
       body.print-mode .social-row {
         grid-template-columns: 28px minmax(0, 1fr) 70px !important;
         break-inside: avoid;
@@ -7597,7 +7576,7 @@
         const birthDerived = [];
         if (person.lunarBirthday) birthDerived.push(esc(person.lunarBirthday));
         if (person.zodiac) {
-          birthDerived.push(`属${esc(person.zodiac)}<span class="benming-tag ${person.isBenmingNian ? "" : "is-muted"}">${person.isBenmingNian ? "本命年" : "非本命年"}</span>`);
+          birthDerived.push(`属${esc(person.zodiac)}（${person.isBenmingNian ? "本命年" : "非本命年"}）`);
         }
         if (person.constellation) birthDerived.push(esc(person.constellation));
         const regionHint = person.idRegionPrecision === "city"
