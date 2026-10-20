@@ -11,7 +11,7 @@
 
 ## 启动
 
-- Windows：双击项目根目录的 **Profiles.lnk**，或运行 `launch-profiles.cmd`。
+- Windows：双击项目根目录的 `launch-profiles.cmd`，它相当于 Windows 启动快捷方式。
 - macOS：双击 `launch-profiles.command`。服务在 Terminal 中运行，关闭窗口即可停止。
 
 首次运行如果缺少依赖，启动器会自动执行 `npm install`，完成后启动服务并打开浏览器。
