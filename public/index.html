@@ -6690,6 +6690,59 @@
       font-size: 10.5px;
       line-height: 1.65;
     }
+    .zodiac-tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      border-bottom: 1px dotted var(--muted-light);
+      cursor: help;
+    }
+    .zodiac-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 7px);
+      z-index: 20;
+      padding: 4px 7px;
+      border: 1px solid #3c352b;
+      border-radius: 2px;
+      background: #2f2a22;
+      color: #fbf7ef;
+      font-size: 10px;
+      line-height: 1.4;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(3px);
+      transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+    }
+    .zodiac-tip::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 1px);
+      z-index: 21;
+      border: 4px solid transparent;
+      border-top-color: #2f2a22;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(-50%);
+      transition: opacity 0.16s ease, visibility 0.16s;
+    }
+    .zodiac-tip:hover::after,
+    .zodiac-tip:focus-visible::after {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
+    .zodiac-tip:hover::before,
+    .zodiac-tip:focus-visible::before {
+      opacity: 1;
+      visibility: visible;
+    }
     .field-derived {
       display: block;
       margin-top: 3px;
@@ -6776,6 +6829,8 @@
       body.print-mode .field-add,
       body.print-mode .record-actions,
       body.print-mode .social-actions,
+      body.print-mode .zodiac-tip::after,
+      body.print-mode .zodiac-tip::before,
       body.print-mode .interest-tag-actions,
       body.print-mode .subsection-head-actions,
       body.print-mode .relations-card .text-button,
@@ -7576,7 +7631,8 @@
         const birthDerived = [];
         if (person.lunarBirthday) birthDerived.push(esc(person.lunarBirthday));
         if (person.zodiac) {
-          birthDerived.push(`属${esc(person.zodiac)}（${person.isBenmingNian ? "本命年" : "非本命年"}）`);
+          const benming = person.isBenmingNian ? "本命年" : "非本命年";
+          birthDerived.push(`<span class="zodiac-tip" tabindex="0" data-tip="${benming}" aria-label="属${esc(person.zodiac)}，${benming}">属${esc(person.zodiac)}</span>`);
         }
         if (person.constellation) birthDerived.push(esc(person.constellation));
         const regionHint = person.idRegionPrecision === "city"
