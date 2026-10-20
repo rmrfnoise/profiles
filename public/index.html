@@ -6682,6 +6682,38 @@
       color: var(--danger);
     }
     .custom-field-remove svg { width: 13px; height: 13px; }
+    .birth-derived {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 10.5px;
+      line-height: 1.65;
+    }
+    .field-derived {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted-light);
+      font-family: var(--sans);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .id-card-assist {
+      grid-column: 1 / -1;
+      margin: 0;
+      padding: 9px 11px;
+      border: 1px dashed var(--line);
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.32);
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.65;
+    }
+    .id-card-assist.is-warning {
+      border-color: #d9b9ae;
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
 
   </style>
 </head>
@@ -7424,13 +7456,26 @@
 
       function basicSectionContent(person) {
         const custom = customFor(person, "basic");
+        const birthDerived = [
+          person.lunarBirthday,
+          person.zodiac ? `属${person.zodiac}` : "",
+          person.constellation
+        ].filter(Boolean);
+        const regionHint = person.idRegionPrecision === "city"
+          ? "仅识别到市级"
+          : person.idRegionPrecision === "province"
+            ? "仅识别到省级"
+            : person.idRegionPrecision === "unknown"
+              ? "未识别"
+              : "按身份证前 6 位";
         return `
           <dl class="detail-fields">
             ${field("姓名", esc(person.name))}
             ${field("性别", esc(person.gender || "未知"))}
-            ${field("出生日期", esc(formatBirthDate(person.birthDate)), { mono: true })}
+            ${field("出生日期", `${esc(formatBirthDate(person.birthDate))}${birthDerived.length ? `<span class="birth-derived">${birthDerived.map(esc).join(" · ")}</span>` : ""}`)}
             ${field("年龄", ageText(person.birthDate))}
             ${field("身份证号", esc(person.idCard || "未填写"), { mono: true })}
+            ${person.idCard ? field("首次申领户籍地", `${esc(person.idRegion || "未识别")}${person.idRegion ? `<span class="field-derived">${esc(regionHint)}</span>` : ""}`) : ""}
             ${field("备注", esc(person.note || "暂无备注"), { wide: true })}
           </dl>
           ${custom.length ? `<dl class="custom-fields">${custom.map(customFieldHtml).join("")}</dl>` : ""}
@@ -8415,6 +8460,7 @@
               <span>身份证号</span>
               <input name="idCard" type="text" maxlength="18" spellcheck="false" autocomplete="off" value="${esc(person?.idCard || "")}">
             </label>
+            <p class="id-card-assist" id="id-card-assist" hidden aria-live="polite"></p>
             <label class="form-field full">
               <span>备注</span>
               <textarea name="note" maxlength="320">${esc(person?.note || "")}</textarea>
@@ -8436,10 +8482,97 @@
         const error = document.getElementById("person-form-error");
         const nameInput = form.elements.name;
         const avatarPreview = document.getElementById("avatar-preview");
-        form.elements.birthDate.addEventListener("blur", () => {
-          const normalized = parseBirthDateValue(form.elements.birthDate.value);
-          if (normalized) form.elements.birthDate.value = normalized;
+        const idCardInput = form.elements.idCard;
+        const birthInput = form.elements.birthDate;
+        const genderSelect = form.elements.gender;
+        const idAssist = document.getElementById("id-card-assist");
+        let idCardInfo = null;
+        let idLookupToken = 0;
+
+        const setIdAssist = (message, warning = false) => {
+          idAssist.textContent = message;
+          idAssist.hidden = !message;
+          idAssist.classList.toggle("is-warning", Boolean(message && warning));
+        };
+
+        const renderIdAssist = () => {
+          if (!idCardInfo) {
+            setIdAssist("");
+            return;
+          }
+          const rawBirthDate = birthInput.value.trim();
+          const currentBirthDate = rawBirthDate ? parseBirthDateValue(rawBirthDate) : "";
+          const birthConflict = Boolean(rawBirthDate) && currentBirthDate !== idCardInfo.birthDate;
+          const genderConflict = Boolean(genderSelect.value) && genderSelect.value !== idCardInfo.gender;
+          if (!rawBirthDate) birthInput.value = idCardInfo.birthDate;
+          if (!genderSelect.value) genderSelect.value = idCardInfo.gender;
+
+          const address = (person?.addresses || []).find((item) => item.kind === "户口所在地");
+          const regionParts = (idCardInfo.regionParts || []).slice(1);
+          const regionConflict = Boolean(
+            idCardInfo.regionLoaded
+            && regionParts.length
+            && address
+            && !regionParts.some((part) => address.text.includes(part))
+          );
+
+          const messages = [];
+          if (birthConflict) messages.push("身份证号中的出生日期与已填出生日期不一致。");
+          if (genderConflict) messages.push("身份证号中的性别与已填性别不一致。");
+          if (idCardInfo.regionLoaded) {
+            messages.push(idCardInfo.region
+              ? `首次申领户籍地：${idCardInfo.region}`
+              : "首次申领户籍地未能识别。");
+            if (regionConflict) messages.push("与已有户口所在地不一致，请核对。");
+          } else {
+            messages.push("正在识别首次申领户籍地…");
+          }
+          if (!birthConflict && !genderConflict) messages.push("出生日期、性别与身份证号一致。");
+          setIdAssist(messages.join(" "), birthConflict || genderConflict || regionConflict);
+        };
+
+        const lookupIdCard = async () => {
+          const value = idCardInput.value.trim().toUpperCase();
+          const token = ++idLookupToken;
+          if (!/^\d{17}[\dX]$/.test(value)) {
+            idCardInfo = null;
+            setIdAssist("");
+            return;
+          }
+          if (!isValidChineseIdCard(value)) {
+            idCardInfo = null;
+            setIdAssist("身份证号校验未通过。", true);
+            return;
+          }
+          idCardInfo = {
+            birthDate: `${value.slice(6, 10)}-${value.slice(10, 12)}-${value.slice(12, 14)}`,
+            gender: Number(value[16]) % 2 === 1 ? "男" : "女",
+            region: "",
+            regionParts: [],
+            regionPrecision: "unknown",
+            regionLoaded: false
+          };
+          renderIdAssist();
+          try {
+            const details = await apiRequest(`/api/id-card?value=${encodeURIComponent(value)}`);
+            if (token !== idLookupToken) return;
+            idCardInfo = { ...idCardInfo, ...details, regionLoaded: true };
+          } catch {
+            if (token !== idLookupToken) return;
+            idCardInfo = { ...idCardInfo, regionLoaded: true };
+          }
+          renderIdAssist();
+        };
+
+        idCardInput.addEventListener("input", lookupIdCard);
+        birthInput.addEventListener("input", renderIdAssist);
+        birthInput.addEventListener("blur", () => {
+          const normalized = parseBirthDateValue(birthInput.value);
+          if (normalized) birthInput.value = normalized;
+          renderIdAssist();
         });
+        genderSelect.addEventListener("change", renderIdAssist);
+        if (idCardInput.value.trim().length === 18) lookupIdCard();
         const avatarFile = document.getElementById("avatar-file");
         const resetAvatar = document.getElementById("reset-avatar");
         const changeAvatar = document.getElementById("change-avatar");

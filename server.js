@@ -2,6 +2,8 @@
 
 const path = require("node:path");
 const express = require("express");
+const { Solar } = require("lunar-javascript");
+const areaData = require("china-area-data");
 const db = require("./database");
 
 const app = express();
@@ -9,6 +11,13 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8mb" }));
+
+const REGION_NAMES = new Map();
+for (const children of Object.values(areaData)) {
+  for (const [code, name] of Object.entries(children)) {
+    REGION_NAMES.set(code, name);
+  }
+}
 
 const PERSON_COLUMNS = `
   id, name, gender, birth_date, phone, email, id_card, note,
@@ -67,6 +76,61 @@ function isValidIsoBirthDate(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || "").trim());
   if (!match) return false;
   return isValidCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]));
+}
+
+function regionForCode(value) {
+  const code = String(value || "");
+  if (!/^\d{6}$/.test(code)) {
+    return { name: "", parts: [], precision: "unknown" };
+  }
+  const province = REGION_NAMES.get(`${code.slice(0, 2)}0000`);
+  const city = REGION_NAMES.get(`${code.slice(0, 4)}00`);
+  const county = REGION_NAMES.get(code);
+  const parts = [];
+  if (province) parts.push(province);
+  if (city && city !== province && !/市辖区|省直辖|自治区直辖/.test(city)) parts.push(city);
+  if (county && county !== city && county !== province) parts.push(county);
+  const precision = county && county !== city
+    ? "county"
+    : city && city !== province
+      ? "city"
+      : province
+        ? "province"
+        : "unknown";
+  return { name: parts.join(" "), parts, precision };
+}
+
+function parseIdCardDetails(value) {
+  const id = String(value || "").trim().toUpperCase();
+  if (!isValidChineseIdCard(id)) return null;
+  const birthDate = `${id.slice(6, 10)}-${id.slice(10, 12)}-${id.slice(12, 14)}`;
+  const gender = Number(id[16]) % 2 === 1 ? "男" : "女";
+  const region = regionForCode(id.slice(0, 6));
+  return {
+    value: id,
+    birthDate,
+    gender,
+    regionCode: id.slice(0, 6),
+    region: region.name,
+    regionParts: region.parts,
+    regionPrecision: region.precision
+  };
+}
+
+function birthMeta(birthDate) {
+  if (!isValidIsoBirthDate(birthDate)) return {};
+  const [year, month, day] = birthDate.split("-").map(Number);
+  try {
+    const solar = Solar.fromYmd(year, month, day);
+    const lunar = solar.getLunar();
+    return {
+      lunarBirthday: `农历${lunar.getYearInGanZhi()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,
+      zodiac: lunar.getYearShengXiao(),
+      constellation: `${solar.getXingZuo()}座`
+    };
+  } catch {
+    return {};
+  }
 }
 
 function validatePerson(person) {
@@ -174,15 +238,17 @@ function sanitizeAvatar(value) {
 function normalizePersonInput(input = {}, fallback = {}) {
   const pick = (key) => (Object.prototype.hasOwnProperty.call(input, key) ? input[key] : fallback[key]);
   const name = cleanString(pick("name"), 200);
-  let contacts = sanitizeContacts(pick("contacts"));
+  const contacts = sanitizeContacts(pick("contacts"));
+  const idCard = cleanString(pick("idCard"), 120).toUpperCase();
+  const idDetails = parseIdCardDetails(idCard);
 
   return {
     name,
-    gender: cleanString(pick("gender"), 30),
-    birthDate: cleanString(pick("birthDate"), 30),
+    gender: cleanString(pick("gender"), 30) || idDetails?.gender || "",
+    birthDate: cleanString(pick("birthDate"), 30) || idDetails?.birthDate || "",
     phone: primaryContactValue(contacts, "phone"),
     email: primaryContactValue(contacts, "email"),
-    idCard: cleanString(pick("idCard"), 120).toUpperCase(),
+    idCard,
     note: cleanString(pick("note"), 10000),
     contacts,
     avatar: sanitizeAvatar(pick("avatar")),
@@ -206,11 +272,15 @@ function rowToPerson(row) {
   }
   const socials = sanitizeSocials(row.socials);
   const addresses = sanitizeAddresses(row.addresses);
+  const idDetails = parseIdCardDetails(row.id_card);
+  const birthDate = row.birth_date || idDetails?.birthDate || "";
+  const gender = row.gender || idDetails?.gender || "";
+  const birthDetails = birthMeta(birthDate);
   return {
     id: String(row.id),
     name: row.name || "",
-    gender: row.gender || "",
-    birthDate: row.birth_date || "",
+    gender,
+    birthDate,
     phone: primaryContactValue(contacts, "phone"),
     email: primaryContactValue(contacts, "email"),
     idCard: row.id_card || "",
@@ -220,7 +290,11 @@ function rowToPerson(row) {
     socials,
     addresses,
     interests: parseJsonArray(row.interests),
-    customFields: parseJsonArray(row.custom_fields)
+    customFields: parseJsonArray(row.custom_fields),
+    ...birthDetails,
+    idRegion: idDetails?.region || "",
+    idRegionParts: idDetails?.regionParts || [],
+    idRegionPrecision: idDetails?.regionPrecision || ""
   };
 }
 
@@ -315,6 +389,18 @@ function personDbParams(person, id = null) {
     customFields: JSON.stringify(person.customFields)
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* ID card helpers                                                    */
+/* ------------------------------------------------------------------ */
+
+app.get("/api/id-card", (req, res) => {
+  const details = parseIdCardDetails(req.query.value);
+  if (!details) {
+    return res.status(400).json({ error: "请填写正确的身份证号。" });
+  }
+  res.json(details);
+});
 
 /* ------------------------------------------------------------------ */
 /* People API                                                         */
