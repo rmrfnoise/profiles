@@ -6780,6 +6780,11 @@
       letter-spacing: 0;
       vertical-align: 1px;
     }
+    .benming-tag.is-muted {
+      border-color: var(--line);
+      background: #f7f3ea;
+      color: var(--muted);
+    }
 
     @media print {
       @page { size: A4 portrait; margin: 12mm; }
@@ -7592,7 +7597,7 @@
         const birthDerived = [];
         if (person.lunarBirthday) birthDerived.push(esc(person.lunarBirthday));
         if (person.zodiac) {
-          birthDerived.push(`属${esc(person.zodiac)}${person.isBenmingNian ? '<span class="benming-tag">本命年</span>' : ""}`);
+          birthDerived.push(`属${esc(person.zodiac)}<span class="benming-tag ${person.isBenmingNian ? "" : "is-muted"}">${person.isBenmingNian ? "本命年" : "非本命年"}</span>`);
         }
         if (person.constellation) birthDerived.push(esc(person.constellation));
         const regionHint = person.idRegionPrecision === "city"
