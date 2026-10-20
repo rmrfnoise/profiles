@@ -6714,6 +6714,8 @@
       background: var(--danger-soft);
       color: var(--danger);
     }
+    .id-assist-line { display: block; }
+    .id-assist-line + .id-assist-line { margin-top: 3px; }
 
   </style>
 </head>
@@ -8490,9 +8492,15 @@
         let idLookupToken = 0;
 
         const setIdAssist = (message, warning = false) => {
-          idAssist.textContent = message;
-          idAssist.hidden = !message;
-          idAssist.classList.toggle("is-warning", Boolean(message && warning));
+          const lines = (Array.isArray(message) ? message : [message]).filter(Boolean);
+          idAssist.replaceChildren(...lines.map((line) => {
+            const row = document.createElement("span");
+            row.className = "id-assist-line";
+            row.textContent = line;
+            return row;
+          }));
+          idAssist.hidden = !lines.length;
+          idAssist.classList.toggle("is-warning", Boolean(lines.length && warning));
         };
 
         const renderIdAssist = () => {
@@ -8528,7 +8536,7 @@
             messages.push("正在识别首次申领户籍地…");
           }
           if (!birthConflict && !genderConflict) messages.push("出生日期、性别与身份证号一致。");
-          setIdAssist(messages.join(" "), birthConflict || genderConflict || regionConflict);
+          setIdAssist(messages, birthConflict || genderConflict || regionConflict);
         };
 
         const lookupIdCard = async () => {
