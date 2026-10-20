@@ -6716,6 +6716,54 @@
     }
     .id-assist-line { display: block; }
     .id-assist-line + .id-assist-line { margin-top: 3px; }
+    .interest-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .interest-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 30px;
+      max-width: 100%;
+      padding: 2px 4px 2px 10px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: #fffdf8;
+      color: var(--ink-soft);
+    }
+    .interest-tag-text {
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+    .interest-tag-actions {
+      display: inline-flex;
+      align-items: center;
+      flex: none;
+    }
+    .interest-tag-action {
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 2px;
+      background: transparent;
+      color: var(--muted-light);
+      cursor: pointer;
+    }
+    .interest-tag-action:hover {
+      background: var(--accent-faint);
+      color: var(--accent-deep);
+    }
+    .interest-tag-action.is-danger:hover {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+    .interest-tag-action svg { width: 11px; height: 11px; }
 
   </style>
 </head>
@@ -7435,23 +7483,15 @@
       function interestsSectionContent(person) {
         const custom = customFor(person, "interests");
         return `
-          <dl class="detail-fields">
-            <div class="field wide">
-              <dt class="field-label">兴趣爱好</dt>
-              <dd class="field-value">
-                <div class="interest-line" data-interest-list>
-                  ${person.interests.map((interest, index) => `<span class="interest-item">
-                    <span class="interest-text">${esc(interest)}</span>
-                    <span class="record-actions">
-                      <button class="record-action" type="button" data-edit-interest="${index}" title="编辑兴趣" aria-label="编辑兴趣 ${esc(interest)}">${icons.edit}</button>
-                      <button class="record-action is-danger" type="button" data-delete-interest="${index}" title="删除兴趣" aria-label="删除兴趣 ${esc(interest)}">${icons.trash}</button>
-                    </span>
-                  </span>`).join("")}
-                </div>
-                ${person.interests.length ? "" : `<p class="empty-inline interest-empty" style="margin-top:4px">暂无兴趣</p>`}
-              </dd>
-            </div>
-          </dl>
+          ${person.interests.length ? `<div class="interest-tag-list" data-interest-list>
+            ${person.interests.map((interest, index) => `<span class="interest-tag">
+              <span class="interest-tag-text">${esc(interest)}</span>
+              <span class="interest-tag-actions">
+                <button class="interest-tag-action" type="button" data-edit-interest="${index}" title="编辑兴趣" aria-label="编辑兴趣 ${esc(interest)}">${icons.edit}</button>
+                <button class="interest-tag-action is-danger" type="button" data-delete-interest="${index}" title="删除兴趣" aria-label="删除兴趣 ${esc(interest)}">${icons.trash}</button>
+              </span>
+            </span>`).join("")}
+          </div>` : `<div class="empty-inline">暂无兴趣</div>`}
           ${custom.length ? `<dl class="custom-fields">${custom.map(customFieldHtml).join("")}</dl>` : ""}
         `;
       }
