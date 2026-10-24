@@ -48,11 +48,11 @@ if [ ! -d "node_modules/express" ]; then
   fi
 fi
 
-if curl -fsS --max-time 1 http://localhost:3000 >/dev/null 2>&1; then
-  open "http://localhost:3000"
+if curl -fsS --max-time 1 http://127.0.0.1:3000 >/dev/null 2>&1; then
+  open "http://127.0.0.1:3000"
   exit 0
 fi
 
-( sleep 1; open "http://localhost:3000" ) &
+( sleep 1; open "http://127.0.0.1:3000" ) &
 echo "[Profiles] Running. Close this Terminal window to stop the server."
 exec "$NODE_BIN" server.js

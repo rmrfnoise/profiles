@@ -29,6 +29,8 @@ raw.exec(`
     avatar TEXT,
     socials TEXT NOT NULL DEFAULT '[]',
     addresses TEXT NOT NULL DEFAULT '[]',
+    companies TEXT NOT NULL DEFAULT '[]',
+    photos TEXT NOT NULL DEFAULT '[]',
     interests TEXT NOT NULL DEFAULT '[]',
     custom_fields TEXT NOT NULL DEFAULT '[]'
   );
@@ -57,6 +59,14 @@ raw.exec(`
       CASE WHEN person_a_id < person_b_id THEN person_b_id ELSE person_a_id END
     );
 `);
+
+const personColumns = raw.prepare("PRAGMA table_info(people)").all();
+if (!personColumns.some((column) => column.name === "companies")) {
+  raw.exec("ALTER TABLE people ADD COLUMN companies TEXT NOT NULL DEFAULT '[]';");
+}
+if (!personColumns.some((column) => column.name === "photos")) {
+  raw.exec("ALTER TABLE people ADD COLUMN photos TEXT NOT NULL DEFAULT '[]';");
+}
 
 const db = {
   prepare: (sql) => raw.prepare(sql),

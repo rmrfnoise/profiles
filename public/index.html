@@ -997,8 +997,26 @@
       text-align: center;
     }
 
-    .address-list { display: grid; gap: 9px; }
+    .address-list { position: relative; display: grid; gap: 9px; }
+    .address-drop-line {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      z-index: 2;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+      pointer-events: none;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.1s ease, visibility 0.1s;
+    }
+    .address-drop-line.is-visible {
+      visibility: visible;
+      opacity: 1;
+    }
     .address-row {
+      position: relative;
       display: flex;
       align-items: flex-start;
       gap: 12px;
@@ -1007,6 +1025,28 @@
       border-radius: 11px;
       background: rgba(255, 255, 255, 0.38);
     }
+    .address-drag {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: stretch;
+      width: 18px;
+      margin: -2px 0;
+      color: var(--muted-light);
+      opacity: 0.5;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-drag: element;
+    }
+    .address-drag:hover,
+    .address-drag:focus-visible {
+      color: var(--ink-soft);
+      opacity: 1;
+    }
+    .address-drag:active { cursor: grabbing; }
+    .address-drag svg { width: 14px; height: 14px; pointer-events: none; }
+    .address-row.is-dragging { opacity: 0.45; }
     .address-badges {
       display: flex;
       align-items: center;
@@ -1042,6 +1082,67 @@
       line-height: 1.65;
       overflow-wrap: anywhere;
     }
+    .company-note {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap: 9px;
+    }
+    .photo-thumb {
+      position: relative;
+      aspect-ratio: 1;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--warm-soft);
+      cursor: zoom-in;
+    }
+    .photo-thumb img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s var(--ease);
+    }
+    .photo-thumb:hover img { transform: scale(1.03); }
+    .photo-lightbox { display: grid; gap: 12px; }
+    .photo-stage {
+      display: grid;
+      place-items: center;
+      min-height: 240px;
+      max-height: 70vh;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--warm-soft);
+    }
+    .photo-stage img {
+      display: block;
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+    }
+    .photo-lightbox-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .photo-lightbox-count {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .photo-lightbox-actions { display: flex; gap: 8px; }
 
     .interest-line {
       display: flex;
@@ -1942,17 +2043,6 @@
       opacity: 0.7;
     }
 
-    .field-add.is-primary {
-      border-color: var(--line);
-      background: rgba(255, 255, 255, 0.72);
-      color: var(--accent);
-      padding: 0 9px;
-    }
-    .field-add.is-primary:hover {
-      border-color: #cbd2c4;
-      background: var(--accent-faint);
-      color: var(--accent-deep);
-    }
     .field-add svg { width: 10px; height: 10px; margin-right: 1px; vertical-align: -1px; }
 
     .interest-composer {
@@ -2237,13 +2327,12 @@
       border-bottom: 1px solid rgba(225, 223, 215, 0.8);
     }
     .relation-item .relation-person {
-      padding-right: 24px;
+      padding-right: 52px;
       border-bottom: 0;
     }
-    .relation-remove {
+    .relation-action {
       position: absolute;
       top: 50%;
-      right: 0;
       z-index: 2;
       display: grid;
       place-items: center;
@@ -2257,16 +2346,23 @@
       cursor: pointer;
       opacity: 0;
       transform: translateY(-50%) scale(0.9);
-      transition: opacity 0.2s, transform 0.2s var(--ease), color 0.2s, border-color 0.2s;
+      transition: opacity 0.2s, transform 0.2s var(--ease), color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .relation-remove { right: 0; }
+    .relation-edit { right: 26px; }
+    .relation-action:hover {
+      color: var(--accent-deep);
+      border-color: var(--accent);
+      background: var(--accent-faint);
     }
     .relation-remove:hover {
       color: #8c5b4a;
       border-color: #e2d2c8;
       background: #fbf5f1;
     }
-    .relation-remove svg { width: 10px; height: 10px; }
-    .relation-item:hover .relation-remove,
-    .relation-item:focus-within .relation-remove {
+    .relation-action svg { width: 10px; height: 10px; }
+    .relation-item:hover .relation-action,
+    .relation-item:focus-within .relation-action {
       opacity: 1;
       transform: translateY(-50%) scale(1);
     }
@@ -2313,7 +2409,7 @@
     .custom-field:focus-within .custom-field-remove { opacity: 1; }
 
     @media (hover: none) {
-      .relation-remove { opacity: 0.75; transform: translateY(-50%) scale(1); }
+      .relation-action { opacity: 0.75; transform: translateY(-50%) scale(1); }
       .relation-arrow { display: none; }
       .custom-field-remove { opacity: 0.65; }
       .social-remove { opacity: 0.75; }
@@ -2904,12 +3000,6 @@
       transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
     }
     .field-add:hover { border: 0; background: #f2f4f7; color: var(--ink-soft); transform: scale(1.02); }
-    .field-add.is-primary {
-      border: 0;
-      background: var(--accent-faint);
-      color: var(--accent);
-    }
-    .field-add.is-primary:hover { background: var(--accent-soft); color: var(--accent-deep); }
     .section-content { padding: 0 26px 28px; }
     .section-content > .section-rule { display: none; }
     .detail-fields { gap: 22px 34px; }
@@ -3020,7 +3110,7 @@
     .relation-copy strong { color: var(--ink-soft); font-size: 12.5px; }
     .relation-copy span { color: var(--muted); }
     .relation-kind { color: var(--muted-light); }
-    .relation-remove { border: 0; background: #ffffff; box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08); }
+    .relation-action { border: 0; background: #ffffff; box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08); }
     .relation-remove:hover { border: 0; background: #fff1ed; color: #b54736; }
     .relations-empty { padding: 24px 2px 14px; color: var(--muted); font-size: 12px; line-height: 1.75; }
     .relations-empty strong { color: var(--ink-soft); font-size: 12.5px; font-weight: 600; }
@@ -3997,8 +4087,6 @@
       transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
     }
     .field-add:hover { border-color: var(--accent); background: rgba(87, 255, 138, 0.06); color: var(--accent); transform: none; }
-    .field-add.is-primary { border-color: #2c653b; background: rgba(87, 255, 138, 0.045); color: var(--accent); }
-    .field-add.is-primary:hover { border-color: var(--accent); background: rgba(87, 255, 138, 0.1); }
     .section-content { padding: 16px; }
     .section-content > .section-rule { display: none; }
     .detail-fields { gap: 17px 28px; }
@@ -4110,7 +4198,7 @@
     .relation-copy span { color: #5d8868; font-family: var(--mono); font-size: 8.5px; }
     .relation-kind { color: #4f8d62; font-family: var(--mono); font-style: normal; font-size: 8px; }
     .relation-arrow { color: #3c704b; }
-    .relation-remove { border: 1px solid #1d4027; background: #040805; box-shadow: none; color: #4c7257; }
+    .relation-action { border: 1px solid #1d4027; background: #040805; box-shadow: none; color: #4c7257; }
     .relation-remove:hover { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
     .relations-empty { padding: 20px 2px 12px; color: #5d8868; font-family: var(--mono); font-size: 9.5px; line-height: 1.8; }
     .relations-empty strong { color: #91c9a0; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.03em; }
@@ -4673,7 +4761,6 @@
     .header-note { font-size: 10px; color: var(--muted); }
     .add-person-btn { font-size: 11px; }
     .field-add { font-size: 9.5px; }
-    .field-add.is-primary { color: var(--accent); }
     .ghost-btn { font-size: 10px; color: var(--muted); }
     .ghost-btn:hover { color: var(--accent); }
     .btn-primary, .btn-danger, .btn-secondary { font-size: 10.5px; }
@@ -5023,8 +5110,6 @@
       color: var(--muted);
     }
     .field-add:hover { border-color: var(--accent); background: var(--accent-faint); color: var(--accent-deep); }
-    .field-add.is-primary { border-color: #bcd5c5; background: var(--accent-faint); color: var(--accent-deep); }
-    .field-add.is-primary:hover { border-color: var(--accent); background: var(--accent-soft); }
     .field-label { color: var(--muted-light); }
     .field-value { color: var(--ink-soft); }
     .field-value .auto-note { color: var(--muted-light); }
@@ -5093,7 +5178,7 @@
     .relation-copy span { color: var(--muted); }
     .relation-kind { color: var(--accent); }
     .relation-arrow { color: #94ab9a; }
-    .relation-remove { border-color: var(--line); background: #ffffff; color: var(--muted-light); }
+    .relation-action { border-color: var(--line); background: #ffffff; color: var(--muted-light); }
     .relation-remove:hover { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
     .relations-empty { color: var(--muted); }
     .relations-empty strong { color: var(--ink-soft); }
@@ -5947,8 +6032,6 @@
       text-transform: none;
     }
     .field-add:hover { border-color: var(--accent); background: var(--accent-faint); color: var(--accent-deep); }
-    .field-add.is-primary { border-color: #b8cbbd; background: var(--accent-faint); color: var(--accent-deep); }
-    .field-add.is-primary:hover { border-color: var(--accent); background: var(--accent-soft); }
     .section-content { padding: 18px; }
     .detail-fields { gap: 18px 30px; }
     .field-label {
@@ -6083,7 +6166,7 @@
     .relation-copy span { color: var(--muted); font-family: var(--sans); font-size: 10px; }
     .relation-kind { color: var(--accent); font-family: var(--sans); font-style: normal; font-size: 9.5px; }
     .relation-arrow { color: #a39a89; }
-    .relation-remove { border: 1px solid var(--line); background: #fffdf8; box-shadow: none; color: var(--muted-light); }
+    .relation-action { border: 1px solid var(--line); background: #fffdf8; box-shadow: none; color: var(--muted-light); }
     .relation-remove:hover { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
     .relations-empty { padding: 20px 2px 12px; color: var(--muted); font-family: var(--sans); font-size: 11px; line-height: 1.8; }
     .relations-empty strong { color: var(--ink-soft); font-family: var(--sans); font-size: 11px; font-weight: 500; }
@@ -6420,8 +6503,9 @@
     }
     .field-avatar-value { margin: 0; padding: 0; }
     .platform-mark svg { width: 14px; height: 14px; }
-    .relation-item .relation-person { padding-right: 48px; }
+    .relation-item .relation-person { padding-right: 76px; }
     .relation-remove { right: 14px; }
+    .relation-edit { right: 40px; }
 
     .graph-panel,
     .graph-toolbar { background: #f7f2e7; }
@@ -6690,59 +6774,6 @@
       font-size: 10.5px;
       line-height: 1.65;
     }
-    .zodiac-tip {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      border-bottom: 1px dotted var(--muted-light);
-      cursor: help;
-    }
-    .zodiac-tip::after {
-      content: attr(data-tip);
-      position: absolute;
-      left: 50%;
-      bottom: calc(100% + 7px);
-      z-index: 20;
-      padding: 4px 7px;
-      border: 1px solid #3c352b;
-      border-radius: 2px;
-      background: #2f2a22;
-      color: #fbf7ef;
-      font-size: 10px;
-      line-height: 1.4;
-      white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transform: translateX(-50%) translateY(3px);
-      transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
-    }
-    .zodiac-tip::before {
-      content: "";
-      position: absolute;
-      left: 50%;
-      bottom: calc(100% + 1px);
-      z-index: 21;
-      border: 4px solid transparent;
-      border-top-color: #2f2a22;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transform: translateX(-50%);
-      transition: opacity 0.16s ease, visibility 0.16s;
-    }
-    .zodiac-tip:hover::after,
-    .zodiac-tip:focus-visible::after {
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(-50%) translateY(0);
-    }
-    .zodiac-tip:hover::before,
-    .zodiac-tip:focus-visible::before {
-      opacity: 1;
-      visibility: visible;
-    }
     .field-derived {
       display: block;
       margin-top: 3px;
@@ -6828,9 +6859,8 @@
       body.print-mode .section-chevron,
       body.print-mode .field-add,
       body.print-mode .record-actions,
+      body.print-mode .address-drag,
       body.print-mode .social-actions,
-      body.print-mode .zodiac-tip::after,
-      body.print-mode .zodiac-tip::before,
       body.print-mode .interest-tag-actions,
       body.print-mode .subsection-head-actions,
       body.print-mode .relations-card .text-button,
@@ -6883,6 +6913,12 @@
       body.print-mode .address-row,
       body.print-mode .interest-tag,
       body.print-mode .custom-field { break-inside: avoid; }
+      body.print-mode .photo-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 5mm;
+      }
+      body.print-mode .photo-thumb { break-inside: avoid; }
+      body.print-mode .profile-section[data-section="gallery"].is-empty { display: none; }
       body.print-mode .custom-field { padding-right: 0 !important; }
       body.print-mode .relations-card {
         box-shadow: none;
@@ -6963,10 +6999,11 @@
       const state = {
         query: "",
         graphShowIsolated: true,
-        expandedSections: new Set(["contact"]),
+        expandedSections: new Set(),
         currentDetailId: null,
         highlightPersonId: null,
-        modalTarget: "standalone"
+        modalTarget: "standalone",
+        photoUploading: false
       };
 
       let graphCtx = null;
@@ -6992,6 +7029,8 @@
         info: icon('<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>'),
         mail: icon('<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path>'),
         phone: icon('<path d="M7.3 3.7 9.5 8l-2 1.7a14 14 0 0 0 6.8 6.8l1.7-2 4.3 2.2-.6 2.3a2 2 0 0 1-2.2 1.4c-8-.9-14.2-7.1-15.1-15.1a2 2 0 0 1 1.4-2.2l2.3-.6Z"></path>'),
+        grip: icon('<path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path>'),
+        idCard: icon('<rect x="2.5" y="5" width="19" height="14" rx="2.2"></rect><circle cx="8" cy="10.6" r="1.9"></circle><path d="M4.9 16c.6-1.6 1.7-2.4 3.1-2.4s2.5.8 3.1 2.4M14 9.5h4.5M14 12.5h4.5M14 15.5h3"></path>'),
         fit: icon('<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path>'),
         edit: icon('<path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>'),
         trash: icon('<path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14M10 11v5M14 11v5"></path>'),
@@ -7229,6 +7268,12 @@
             address.note,
             address.text
           ]),
+          ...(person.companies || []).flatMap((company) => [
+            company.name,
+            company.role,
+            company.creditCode,
+            company.note
+          ]),
           ...(person.interests || []),
           ...(person.customFields || []).flatMap((fieldItem) => [
             fieldItem.name,
@@ -7311,6 +7356,8 @@
           avatar: person.avatar || null,
           socials: person.socials || [],
           addresses: person.addresses || [],
+          companies: person.companies || [],
+          photos: person.photos || [],
           interests: person.interests || [],
           customFields: person.customFields || []
         };
@@ -7322,6 +7369,8 @@
           contacts: (person.contacts || []).map((item) => ({ ...item })),
           socials: (person.socials || []).map((item) => ({ ...item })),
           addresses: (person.addresses || []).map((item) => ({ ...item })),
+          companies: (person.companies || []).map((item) => ({ ...item })),
+          photos: [...(person.photos || [])],
           interests: [...(person.interests || [])],
           customFields: (person.customFields || []).map((item) => ({ ...item }))
         };
@@ -7519,9 +7568,11 @@
                   <span class="section-summary">${summary}</span>
                   <span class="section-chevron" aria-hidden="true">${icons.chevronDown}</span>
                 </button>`}
-            ${key === "address" ? `<button class="field-add is-primary" type="button" data-add-address title="添加地址">${icons.plus} 添加地址</button>` : ""}
-            ${key === "interests" ? `<button class="field-add is-primary" type="button" data-add-interest title="添加兴趣">${icons.plus} 添加兴趣</button>` : ""}
-            ${addTarget ? `<button class="field-add field-add-custom" type="button" data-add-field="${addTarget}" title="在「${title}」中添加自定义字段">添加字段</button>` : ""}
+            ${key === "address" ? `<button class="field-add" type="button" data-add-address title="添加地址">${icons.plus} 添加地址</button>` : ""}
+            ${key === "company" ? `<button class="field-add" type="button" data-add-company title="添加公司">${icons.plus} 添加公司</button>` : ""}
+            ${key === "gallery" ? `<button class="field-add" type="button" data-add-photo title="添加照片">${icons.plus} 添加照片</button>` : ""}
+            ${key === "interests" ? `<button class="field-add" type="button" data-add-interest title="添加兴趣">${icons.plus} 添加兴趣</button>` : ""}
+            ${addTarget === "standalone" ? `<button class="field-add" type="button" data-add-field="standalone" title="添加自定义字段">${icons.plus} 添加字段</button>` : ""}
           </div>
           <div class="section-body" id="section-body-${key}">
             <div class="section-body-inner" ${isOpen ? "" : "inert"} aria-hidden="${isOpen ? "false" : "true"}">
@@ -7594,9 +7645,12 @@
 
       function addressSectionContent(person) {
         const addresses = person.addresses.length
-          ? `<div class="address-list">${person.addresses.map((address, index) => `<div class="address-row">
+          ? `<div class="address-list" data-address-list>
+              <div class="address-drop-line" data-address-drop-line aria-hidden="true"></div>
+              ${person.addresses.map((address, index) => `<div class="address-row" data-address-row="${index}">
+              <span class="address-drag" data-drag-address draggable="true" tabindex="0" role="button" title="拖动调整顺序" aria-label="拖动调整地址顺序，或按上下方向键移动">${icons.grip}</span>
               <span class="address-badges">
-                <span class="addr-mark">${esc(address.kind || "地址")}</span>
+                <span class="addr-mark">${esc(address.kind || "未分类")}</span>
                 ${address.note ? `<span class="addr-kind">${esc(address.note)}</span>` : ""}
               </span>
               <p class="address-text">${esc(address.text)}</p>
@@ -7608,6 +7662,362 @@
           : `<div class="empty-inline">暂无地址</div>`;
         const custom = customFor(person, "address");
         return `${addresses}${custom.length ? `<dl class="custom-fields">${custom.map(customFieldHtml).join("")}</dl>` : ""}`;
+      }
+
+      function companySectionContent(person) {
+        const companies = person.companies || [];
+        if (!companies.length) return `<div class="empty-inline">暂无公司</div>`;
+        return `<div class="address-list" data-company-list>
+          <div class="address-drop-line" data-company-drop-line aria-hidden="true"></div>
+          ${companies.map((company, index) => `<div class="address-row" data-company-row="${index}">
+            <span class="address-drag" data-drag-company draggable="true" tabindex="0" role="button" title="拖动调整顺序" aria-label="拖动调整公司顺序，或按上下方向键移动">${icons.grip}</span>
+            <span class="address-badges">
+              <span class="addr-mark">${esc(company.role || "未填写")}</span>
+            </span>
+            <p class="address-text">${esc(company.name)}${company.creditCode || company.note ? `<span class="company-note">${[company.creditCode, company.note].filter(Boolean).map((value) => esc(value)).join(" · ")}</span>` : ""}</p>
+            <span class="record-actions">
+              <button class="record-action" type="button" data-edit-company="${index}" title="编辑公司" aria-label="编辑公司">${icons.edit}</button>
+              <button class="record-action is-danger" type="button" data-delete-company="${index}" title="删除公司" aria-label="删除公司">${icons.trash}</button>
+            </span>
+          </div>`).join("")}
+        </div>`;
+      }
+
+      function gallerySectionContent(person) {
+        const photos = person.photos || [];
+        if (!photos.length) return `<div class="empty-inline">暂无照片</div>`;
+        return `<div class="photo-grid">${photos.map((name, index) => `<button class="photo-thumb" type="button" data-view-photo="${index}" aria-label="查看第 ${index + 1} 张照片">
+          <img src="/media/photos/${encodeURIComponent(name)}-thumb.jpg" alt="">
+        </button>`).join("")}</div>`;
+      }
+
+      const PHOTO_FILE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+
+      function drawPhotoJpeg(image, maxSide, quality) {
+        const width = image.naturalWidth;
+        const height = image.naturalHeight;
+        if (!width || !height) throw new Error("无法读取图片。");
+        const scale = Math.min(1, maxSide / Math.max(width, height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(width * scale));
+        canvas.height = Math.max(1, Math.round(height * scale));
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#f5f4f0";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", quality);
+      }
+
+      function preparePhotoPayload(file) {
+        return new Promise((resolve, reject) => {
+          if (!PHOTO_FILE_TYPES.has(file.type)) {
+            reject(new Error("仅支持 JPEG、PNG、WebP 图片。"));
+            return;
+          }
+          if (file.size > 25 * 1024 * 1024) {
+            reject(new Error("图片不能超过 25 MB。"));
+            return;
+          }
+          const objectUrl = URL.createObjectURL(file);
+          const image = new Image();
+          image.addEventListener("load", () => {
+            try {
+              const display = drawPhotoJpeg(image, 1600, 0.82);
+              const thumb = drawPhotoJpeg(image, 480, 0.78);
+              resolve({ display, thumb });
+            } catch (error) {
+              reject(error);
+            } finally {
+              URL.revokeObjectURL(objectUrl);
+            }
+          });
+          image.addEventListener("error", () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error("无法读取图片。"));
+          });
+          image.src = objectUrl;
+        });
+      }
+
+      async function addPhotoFiles(person, files) {
+        const list = [...files].filter((file) => file && PHOTO_FILE_TYPES.has(file.type));
+        if (!list.length) {
+          showToast(files.length ? "仅支持 JPEG、PNG、WebP 图片。" : "请选择图片文件。");
+          return;
+        }
+        if (state.photoUploading) {
+          showToast("照片正在处理中，请稍候。");
+          return;
+        }
+        state.photoUploading = true;
+        const addButton = document.querySelector("[data-add-photo]");
+        const originalHtml = addButton?.innerHTML || "";
+        let added = 0;
+        let failed = 0;
+        let firstError = "";
+        if (addButton) addButton.disabled = true;
+        try {
+          for (let index = 0; index < list.length; index += 1) {
+            if (addButton && document.body.contains(addButton)) {
+              addButton.textContent = `处理中 ${index + 1}/${list.length}`;
+            }
+            try {
+              const payload = await preparePhotoPayload(list[index]);
+              await apiRequest(`/api/people/${person.id}/photos`, {
+                method: "POST",
+                body: JSON.stringify(payload)
+              });
+              added += 1;
+            } catch (error) {
+              failed += 1;
+              if (!firstError) firstError = error.message || "图片处理失败";
+              console.error("Photo upload failed:", error);
+            }
+          }
+          if (added) {
+            await loadData();
+            state.expandedSections.add("gallery");
+            const fresh = byId.get(person.id);
+            if (fresh) {
+              const scrollY = window.scrollY;
+              renderDetailPage(fresh, { preserveScroll: true });
+              window.scrollTo({ top: scrollY, behavior: "auto" });
+            }
+          }
+        } finally {
+          state.photoUploading = false;
+          if (addButton && document.body.contains(addButton)) {
+            addButton.disabled = false;
+            addButton.innerHTML = originalHtml;
+          }
+        }
+        if (failed) showToast(`已添加 ${added} 张，${failed} 张失败${firstError ? `：${firstError}` : ""}。`);
+        else showToast(`已添加 ${added} 张照片。`);
+      }
+
+      async function deletePhoto(person, name) {
+        try {
+          await apiRequest(`/api/people/${person.id}/photos/${encodeURIComponent(name)}`, {
+            method: "DELETE"
+          });
+          closeModal();
+          await loadData();
+          state.expandedSections.add("gallery");
+          const fresh = byId.get(person.id);
+          if (fresh) {
+            const scrollY = window.scrollY;
+            renderDetailPage(fresh, { preserveScroll: true });
+            window.scrollTo({ top: scrollY, behavior: "auto" });
+          }
+          showToast("照片已删除。");
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      function openPhotoLightbox(person, startIndex) {
+        const photos = person.photos || [];
+        if (!photos.length) return;
+        let index = Math.min(Math.max(0, startIndex), photos.length - 1);
+        let deleteArmed = false;
+        let deleteTimer = 0;
+        const body = `<div class="photo-lightbox">
+          <div class="photo-stage"><img id="photo-lightbox-image" src="/media/photos/${encodeURIComponent(photos[index])}.jpg" alt="照片 ${index + 1}"></div>
+          <div class="photo-lightbox-bar">
+            <span class="photo-lightbox-count" id="photo-lightbox-count">${index + 1} / ${photos.length}</span>
+            <div class="photo-lightbox-actions">
+              <button class="ghost-btn" type="button" data-photo-prev ${photos.length < 2 ? "hidden" : ""}>上一张</button>
+              <button class="ghost-btn" type="button" data-photo-next ${photos.length < 2 ? "hidden" : ""}>下一张</button>
+              <button class="ghost-btn is-danger" type="button" data-photo-delete>删除照片</button>
+            </div>
+          </div>
+        </div>`;
+        const root = openModalShell({
+          kicker: "GALLERY",
+          title: person.name || "照片",
+          bodyHtml: body,
+          wide: true
+        });
+        const image = document.getElementById("photo-lightbox-image");
+        const count = document.getElementById("photo-lightbox-count");
+        const deleteButton = root.querySelector("[data-photo-delete]");
+        const modal = root.querySelector(".modal");
+        const show = (nextIndex) => {
+          index = (nextIndex + photos.length) % photos.length;
+          image.src = `/media/photos/${encodeURIComponent(photos[index])}.jpg`;
+          image.alt = `照片 ${index + 1}`;
+          count.textContent = `${index + 1} / ${photos.length}`;
+          deleteArmed = false;
+          deleteButton.textContent = "删除照片";
+          deleteButton.classList.remove("is-confirming");
+          window.clearTimeout(deleteTimer);
+        };
+        root.querySelector("[data-photo-prev]")?.addEventListener("click", () => show(index - 1));
+        root.querySelector("[data-photo-next]")?.addEventListener("click", () => show(index + 1));
+        deleteButton.addEventListener("click", () => {
+          if (!deleteArmed) {
+            deleteArmed = true;
+            deleteButton.textContent = "确认删除";
+            deleteButton.classList.add("is-confirming");
+            window.clearTimeout(deleteTimer);
+            deleteTimer = window.setTimeout(() => {
+              deleteArmed = false;
+              if (document.body.contains(deleteButton)) {
+                deleteButton.textContent = "删除照片";
+                deleteButton.classList.remove("is-confirming");
+              }
+            }, 3000);
+            return;
+          }
+          window.clearTimeout(deleteTimer);
+          deletePhoto(person, photos[index]);
+        });
+        modal?.setAttribute("tabindex", "-1");
+        modal?.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            show(index - 1);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            show(index + 1);
+          }
+        });
+        window.requestAnimationFrame(() => modal?.focus({ preventScroll: true }));
+      }
+
+      function bindOrderableList(person, key, field, label) {
+        const list = document.querySelector(`[data-${key}-list]`);
+        const dropLine = list?.querySelector(`[data-${key}-drop-line]`);
+        const rows = list ? [...list.querySelectorAll(`[data-${key}-row]`)] : [];
+        if (!list || !dropLine || rows.length < 2) return;
+
+        let dragIndex = -1;
+        let dropIndex = -1;
+        let rowMidpoints = [];
+        let leaveTimer = 0;
+
+        const hideDropLine = () => {
+          dropIndex = -1;
+          dropLine.classList.remove("is-visible");
+        };
+
+        const finishDrag = () => {
+          window.clearTimeout(leaveTimer);
+          dragIndex = -1;
+          dropIndex = -1;
+          dropLine.classList.remove("is-visible");
+          rows.forEach((row) => row.classList.remove("is-dragging"));
+        };
+
+        const insertIndexAt = (y) => {
+          for (let index = 0; index < rowMidpoints.length; index += 1) {
+            if (y < rowMidpoints[index]) return index;
+          }
+          return rows.length;
+        };
+
+        const scheduleHide = () => {
+          window.clearTimeout(leaveTimer);
+          leaveTimer = window.setTimeout(hideDropLine, 60);
+        };
+
+        const showDropLine = (index) => {
+          let top;
+          if (index <= 0) {
+            top = 0;
+          } else if (index >= rows.length) {
+            const last = rows[rows.length - 1];
+            top = last.offsetTop + last.offsetHeight - 1;
+          } else {
+            const before = rows[index - 1];
+            const after = rows[index];
+            top = (before.offsetTop + before.offsetHeight + after.offsetTop) / 2 - 1;
+          }
+          dropLine.style.top = `${Math.max(0, top)}px`;
+          dropLine.classList.add("is-visible");
+        };
+
+        const commitOrder = (from, to, restoreFocus = false) => {
+          if (from === to) return;
+          const draft = draftPerson(person);
+          const items = draft[field];
+          if (!Array.isArray(items)) return;
+          const [moved] = items.splice(from, 1);
+          if (!moved) return;
+          items.splice(to, 0, moved);
+          updatePersonDraft(draft, `${label}顺序已更新。`).then(() => {
+            if (!restoreFocus) return;
+            document.querySelector(`[data-${key}-row="${to}"] [data-drag-${key}]`)?.focus({ preventScroll: true });
+          });
+        };
+
+        rows.forEach((row) => {
+          const handle = row.querySelector(`[data-drag-${key}]`);
+          if (!handle) return;
+
+          handle.addEventListener("dragstart", (event) => {
+            if (!event.dataTransfer) return;
+            window.clearTimeout(leaveTimer);
+            dragIndex = Number(row.getAttribute(`data-${key}-row`));
+            rowMidpoints = rows.map((item) => item.offsetTop + item.offsetHeight / 2);
+            hideDropLine();
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", String(dragIndex));
+            if (event.dataTransfer.setDragImage) {
+              event.dataTransfer.setDragImage(row, 18, 18);
+            }
+            window.requestAnimationFrame(() => row.classList.add("is-dragging"));
+          });
+
+          handle.addEventListener("dragend", finishDrag);
+
+          handle.addEventListener("keydown", (event) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            const from = Number(row.getAttribute(`data-${key}-row`));
+            const to = from + (event.key === "ArrowUp" ? -1 : 1);
+            if (to < 0 || to >= person[field].length) return;
+            commitOrder(from, to, true);
+          });
+        });
+
+        list.addEventListener("dragover", (event) => {
+          if (dragIndex < 0) return;
+          event.preventDefault();
+          window.clearTimeout(leaveTimer);
+          if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+          const y = event.clientY - list.getBoundingClientRect().top;
+          const index = insertIndexAt(y);
+          if (index === dropIndex) return;
+          if (
+            dropIndex >= 0
+            && Math.abs(index - dropIndex) === 1
+            && Math.abs(y - rowMidpoints[Math.min(index, dropIndex)]) < 5
+          ) return;
+          dropIndex = index;
+          showDropLine(index);
+        });
+
+        list.addEventListener("dragleave", (event) => {
+          if (event.relatedTarget instanceof Node && list.contains(event.relatedTarget)) return;
+          scheduleHide();
+        });
+
+        list.addEventListener("drop", (event) => {
+          if (dragIndex < 0) return;
+          event.preventDefault();
+          const from = dragIndex;
+          const y = event.clientY - list.getBoundingClientRect().top;
+          const index = insertIndexAt(y);
+          finishDrag();
+          if (index < 0) return;
+          let to = index;
+          if (to > from) to -= 1;
+          if (to === from) return;
+          commitOrder(from, to);
+        });
       }
 
       function interestsSectionContent(person) {
@@ -7630,10 +8040,7 @@
         const custom = customFor(person, "basic");
         const birthDerived = [];
         if (person.lunarBirthday) birthDerived.push(esc(person.lunarBirthday));
-        if (person.zodiac) {
-          const benming = person.isBenmingNian ? "本命年" : "非本命年";
-          birthDerived.push(`<span class="zodiac-tip" tabindex="0" data-tip="${benming}" aria-label="属${esc(person.zodiac)}，${benming}">属${esc(person.zodiac)}</span>`);
-        }
+        if (person.zodiac) birthDerived.push(`属${esc(person.zodiac)}`);
         if (person.constellation) birthDerived.push(esc(person.constellation));
         const regionHint = person.idRegionPrecision === "city"
           ? "仅识别到市级"
@@ -7685,7 +8092,8 @@
                   </span>
                   <span class="relation-arrow" aria-hidden="true">${icons.arrowRight}</span>
                 </a>
-                <button class="relation-remove" type="button" data-delete-relation="${item.relation.id}" title="删除关系" aria-label="删除与${esc(item.other.name)}的关系">${icons.close}</button>
+                <button class="relation-action relation-edit" type="button" data-edit-relation="${item.relation.id}" title="编辑关系" aria-label="编辑与${esc(item.other.name)}的关系">${icons.edit}</button>
+                <button class="relation-action relation-remove" type="button" data-delete-relation="${item.relation.id}" title="删除关系" aria-label="删除与${esc(item.other.name)}的关系">${icons.close}</button>
               </div>`).join("")}</div>`
             : `<div class="relations-empty"><strong>NO RELATIONS</strong></div>`}
           <div class="relations-foot">
@@ -7760,7 +8168,7 @@
                   </p>
                   <p class="profile-quick">
                     <span>${icons.phone}${esc(person.phone || "未填写")}</span>
-                    <span>${icons.mail}${esc(person.email || "未填写")}</span>
+                    <span>${icons.idCard}${esc(person.idCard || "未填写")}</span>
                   </p>
                 </div>
                 <div class="profile-rel-count">
@@ -7771,11 +8179,13 @@
 
               <div class="detail-grid">
                 <div class="detail-main">
-                  ${sectionShell("basic", "01", "PROFILE", "", basicSectionContent(person), "basic")}
-                  ${sectionShell("contact", "02", "CONTACT", `${(person.contacts || []).length} 条联系方式 · ${person.socials.length} 个账号`, contactSectionContent(person), "contact")}
-                  ${sectionShell("address", "03", "ADDRESS", `${person.addresses.length} 个地址`, addressSectionContent(person), "address")}
-                  ${sectionShell("interests", "04", "INTERESTS", `${person.interests.length} 项兴趣`, interestsSectionContent(person), "interests")}
-                  ${sectionShell("custom", "05", "CUSTOM", `${customFor(person, "standalone").length} 个独立字段`, customSectionContent(person), "standalone")}
+                  ${sectionShell("basic", "01", "PROFILE", "", basicSectionContent(person), "")}
+                  ${sectionShell("contact", "02", "CONTACT", `${(person.contacts || []).length} 条联系方式 · ${person.socials.length} 个账号`, contactSectionContent(person), "")}
+                  ${sectionShell("address", "03", "ADDRESS", `${person.addresses.length} 个地址`, addressSectionContent(person), "")}
+                  ${sectionShell("company", "04", "COMPANY", `${(person.companies || []).length} 家公司`, companySectionContent(person), "")}
+                  ${sectionShell("gallery", "05", "GALLERY", `${(person.photos || []).length} 张照片`, gallerySectionContent(person), "")}
+                  ${sectionShell("interests", "06", "INTERESTS", `${person.interests.length} 项兴趣`, interestsSectionContent(person), "")}
+                  ${sectionShell("custom", "07", "CUSTOM", `${customFor(person, "standalone").length} 个独立字段`, customSectionContent(person), "standalone")}
                 </div>
                 <div class="detail-side">
                   ${relationsCardHtml(person)}
@@ -7784,6 +8194,9 @@
             </div>
           </section>
         `;
+
+        const gallerySection = document.querySelector('[data-section="gallery"]');
+        if (gallerySection) gallerySection.classList.toggle("is-empty", !(person.photos || []).length);
 
         bindDetailInteractions(person);
         if (!options.preserveScroll) window.scrollTo({ top: 0, behavior: "auto" });
@@ -7816,6 +8229,38 @@
           button.addEventListener("click", (event) => {
             event.stopPropagation();
             openAddressModal(person);
+          });
+        });
+
+        document.querySelectorAll("[data-add-company]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openCompanyModal(person);
+          });
+        });
+
+        document.querySelectorAll("[data-add-photo]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/jpeg,image/png,image/webp";
+            input.multiple = true;
+            input.hidden = true;
+            document.body.appendChild(input);
+            input.addEventListener("change", () => {
+              const files = input.files ? [...input.files] : [];
+              input.remove();
+              if (files.length) addPhotoFiles(person, files);
+            });
+            input.addEventListener("cancel", () => input.remove());
+            input.click();
+          });
+        });
+
+        document.querySelectorAll("[data-view-photo]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openPhotoLightbox(person, Number(button.dataset.viewPhoto));
           });
         });
 
@@ -7880,6 +8325,25 @@
           });
         });
 
+        document.querySelectorAll("[data-edit-company]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openCompanyModal(person, Number(button.dataset.editCompany));
+          });
+        });
+
+        document.querySelectorAll("[data-delete-company]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.deleteCompany);
+            const draft = draftPerson(person);
+            const [company] = draft.companies.splice(index, 1);
+            if (!company) return;
+            updatePersonDraft(draft, "公司已删除。");
+          });
+        });
+
+        bindOrderableList(person, "address", "addresses", "地址");
+        bindOrderableList(person, "company", "companies", "公司");
+
         document.querySelectorAll("[data-edit-interest]").forEach((button) => {
           button.addEventListener("click", () => {
             openInterestModal(person, Number(button.dataset.editInterest));
@@ -7893,6 +8357,12 @@
             const [interest] = draft.interests.splice(index, 1);
             if (typeof interest !== "string") return;
             updatePersonDraft(draft, "兴趣已删除。");
+          });
+        });
+
+        document.querySelectorAll("[data-edit-relation]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openRelationModal(person, button.dataset.editRelation);
           });
         });
 
@@ -8290,16 +8760,18 @@
           const rect = stage.getBoundingClientRect();
           const width = rect.width;
           const height = rect.height;
-          const padding = Math.min(88, Math.max(48, width * 0.07));
+          const panelOpen = panel.classList.contains("is-open") && width > 660;
+          const usableWidth = panelOpen ? width - 350 : width;
+          const padding = Math.min(88, Math.max(48, usableWidth * 0.07));
           const minX = Math.min(...targetNodes.map((node) => node.x)) - 47;
           const maxX = Math.max(...targetNodes.map((node) => node.x)) + 47;
           const minY = Math.min(...targetNodes.map((node) => node.y)) - 52;
           const maxY = Math.max(...targetNodes.map((node) => node.y)) + 70;
           const contentWidth = Math.max(1, maxX - minX);
           const contentHeight = Math.max(1, maxY - minY);
-          const k = Math.min((width - padding * 2) / contentWidth, (height - padding * 2) / contentHeight, 1.35);
+          const k = Math.min((usableWidth - padding * 2) / contentWidth, (height - padding * 2) / contentHeight, 1.35);
           view.k = Math.max(0.36, k);
-          view.x = width / 2 - ((minX + maxX) / 2) * view.k;
+          view.x = usableWidth / 2 - ((minX + maxX) / 2) * view.k;
           view.y = height / 2 - ((minY + maxY) / 2) * view.k;
           applyViewport();
         };
@@ -8394,18 +8866,6 @@
           } else {
             fitView();
           }
-        };
-
-        const centerNode = (personId) => {
-          const node = nodeMap.get(personId);
-          if (!node) return;
-          const rect = stage.getBoundingClientRect();
-          const sidePanelOpen = rect.width > 660;
-          const usableWidth = sidePanelOpen ? Math.max(360, rect.width - 350) : rect.width;
-          view.k = Math.max(0.92, Math.min(1.3, view.k));
-          view.x = usableWidth / 2 - node.x * view.k;
-          view.y = rect.height / 2 - node.y * view.k;
-          applyViewport();
         };
 
         const zoomAt = (factor, clientX, clientY) => {
@@ -8553,7 +9013,6 @@
           fitView: fitCurrentView,
           openPanel,
           closePanel,
-          centerNode,
           focusPerson,
           clearFocus
         };
@@ -8562,7 +9021,7 @@
         if (focusId && visibleIds.has(focusId)) {
           window.requestAnimationFrame(() => {
             openPanel(focusId);
-            centerNode(focusId);
+            fitCurrentView();
           });
         }
 
@@ -8919,6 +9378,8 @@
                 avatar: pendingAvatar,
                 socials: [],
                 addresses: [],
+                companies: [],
+                photos: [],
                 interests: [],
                 customFields: []
               })
@@ -8940,8 +9401,6 @@
       function openAddressModal(person, editIndex = -1) {
         const existing = editIndex >= 0 ? person.addresses[editIndex] : null;
         const isEdit = Boolean(existing);
-        const knownKinds = ["住址", "快递地址", "户口所在地", "工作地址"];
-        const isCustomKind = Boolean(existing && !knownKinds.includes(existing.kind));
         const body = `<form class="modal-form" id="address-form" novalidate>
           <div class="form-grid">
             <label class="form-field full">
@@ -8950,21 +9409,11 @@
             </label>
             <label class="form-field">
               <span>类型</span>
-              <select name="addressKind">
-                <option value="住址" ${!isCustomKind && (!existing || existing.kind === "住址") ? "selected" : ""}>住址</option>
-                <option value="快递地址" ${existing?.kind === "快递地址" ? "selected" : ""}>快递地址</option>
-                <option value="户口所在地" ${existing?.kind === "户口所在地" ? "selected" : ""}>户口所在地</option>
-                <option value="工作地址" ${existing?.kind === "工作地址" ? "selected" : ""}>工作地址</option>
-                <option value="自定义输入" ${isCustomKind ? "selected" : ""}>自定义类型</option>
-              </select>
+              <input name="addressKind" type="text" maxlength="20" autocomplete="off" value="${esc(existing?.kind || "")}">
             </label>
             <label class="form-field">
               <span>地址备注</span>
               <input name="addressNote" type="text" maxlength="60" autocomplete="off" value="${esc(existing?.note || "")}">
-            </label>
-            <label class="form-field full" data-custom-address-kind ${isCustomKind ? "" : "hidden"}>
-              <span>自定义类型</span>
-              <input name="customAddressKind" type="text" maxlength="20" autocomplete="off" value="${esc(isCustomKind ? existing.kind : "")}">
             </label>
           </div>
           <p class="form-error" id="address-form-error">请填写地址以继续。</p>
@@ -8981,18 +9430,6 @@
         const form = document.getElementById("address-form");
         const error = document.getElementById("address-form-error");
         const textarea = form.elements.addressText;
-        const kindSelect = form.elements.addressKind;
-        const customKindField = form.querySelector("[data-custom-address-kind]");
-        const customKindInput = form.elements.customAddressKind;
-        const updateKind = () => {
-          const isCustom = kindSelect.value === "自定义输入";
-          customKindField.hidden = !isCustom;
-          if (isCustom) {
-            setModalError(error, "");
-            window.requestAnimationFrame(() => customKindInput.focus());
-          }
-        };
-        kindSelect.addEventListener("change", updateKind);
         window.requestAnimationFrame(() => textarea.focus());
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
@@ -9002,15 +9439,7 @@
             textarea.focus();
             return;
           }
-          let kind = kindSelect.value;
-          if (kind === "自定义输入") {
-            kind = customKindInput.value.trim();
-            if (!kind) {
-              setModalError(error, "请填写地址类型以继续。");
-              customKindInput.focus();
-              return;
-            }
-          }
+          const kind = form.elements.addressKind.value.trim();
           const submitButton = form.querySelector('button[type="submit"]');
           submitButton.disabled = true;
           try {
@@ -9033,6 +9462,81 @@
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
             showToast(isEdit ? "地址已更新。" : "地址已添加。");
+          } catch (requestError) {
+            setModalError(error, requestError.message || "保存失败，请稍后重试。");
+            if (document.body.contains(submitButton)) submitButton.disabled = false;
+          }
+        });
+      }
+
+      function openCompanyModal(person, editIndex = -1) {
+        const existing = editIndex >= 0 ? person.companies[editIndex] : null;
+        const isEdit = Boolean(existing);
+        const body = `<form class="modal-form" id="company-form" novalidate>
+          <div class="form-grid">
+            <label class="form-field full">
+              <span>公司名称</span>
+              <input name="companyName" type="text" maxlength="200" autocomplete="off" value="${esc(existing?.name || "")}" required>
+            </label>
+            <label class="form-field">
+              <span>角色</span>
+              <input name="companyRole" type="text" maxlength="80" autocomplete="off" value="${esc(existing?.role || "")}">
+            </label>
+            <label class="form-field">
+              <span>统一社会信用代码</span>
+              <input name="companyCreditCode" type="text" maxlength="40" autocomplete="off" value="${esc(existing?.creditCode || "")}">
+            </label>
+            <label class="form-field full">
+              <span>备注</span>
+              <textarea name="companyNote" maxlength="500" rows="3">${esc(existing?.note || "")}</textarea>
+            </label>
+          </div>
+          <p class="form-error" id="company-form-error">请填写公司名称以继续。</p>
+          <div class="modal-actions">
+            <button class="btn-secondary" type="button" data-close-modal>取消</button>
+            <button class="btn-primary" type="submit">保存</button>
+          </div>
+        </form>`;
+        openModalShell({
+          kicker: isEdit ? "EDIT COMPANY" : "NEW COMPANY",
+          title: isEdit ? "编辑公司" : "添加公司",
+          bodyHtml: body
+        });
+        const form = document.getElementById("company-form");
+        const error = document.getElementById("company-form-error");
+        const nameInput = form.elements.companyName;
+        window.requestAnimationFrame(() => nameInput.focus());
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const name = nameInput.value.trim();
+          if (!name) {
+            setModalError(error, "请填写公司名称以继续。");
+            nameInput.focus();
+            return;
+          }
+          const submitButton = form.querySelector('button[type="submit"]');
+          submitButton.disabled = true;
+          try {
+            const draft = draftPerson(person);
+            const nextCompany = {
+              name,
+              role: form.elements.companyRole.value.trim(),
+              creditCode: form.elements.companyCreditCode.value.trim().toUpperCase(),
+              note: form.elements.companyNote.value.trim()
+            };
+            if (isEdit) draft.companies[editIndex] = nextCompany;
+            else draft.companies.push(nextCompany);
+            await persistPersonDraft(draft);
+            await loadData();
+            closeModal();
+            state.expandedSections.add("company");
+            const fresh = byId.get(person.id);
+            if (fresh) {
+              const scrollY = window.scrollY;
+              renderDetailPage(fresh, { preserveScroll: true });
+              window.scrollTo({ top: scrollY, behavior: "auto" });
+            }
+            showToast(isEdit ? "公司已更新。" : "公司已添加。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
@@ -9284,31 +9788,51 @@
         });
       }
 
-      function openRelationModal(person) {
-        const available = people
-          .filter((candidate) => candidate.id !== person.id && !relationExists(person.id, candidate.id))
-          .sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
-        if (!available.length) {
+      function openRelationModal(person, relationId = null) {
+        const relation = relationId ? relations.find((item) => item.id === String(relationId)) : null;
+        const isEdit = Boolean(relation);
+        const other = isEdit ? byId.get(relation.a === person.id ? relation.b : relation.a) : null;
+        if (isEdit && !other) {
+          showToast("未找到该关系。");
+          return;
+        }
+        const available = isEdit
+          ? []
+          : people
+            .filter((candidate) => candidate.id !== person.id && !relationExists(person.id, candidate.id))
+            .sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+        if (!isEdit && !available.length) {
           showToast("暂无可关联的档案。");
           return;
         }
-        const options = available.map((candidate) =>
-          `<option value="${candidate.id}">${esc(candidate.name)} · ${esc(candidate.phone || "未填写")}</option>`
-        ).join("");
+        const targetOption = (candidate) =>
+          `<option value="${candidate.id}">${esc(candidate.name)} · ${esc(candidate.phone || "未填写")}</option>`;
+        const options = isEdit
+          ? `<option value="${other.id}" selected>${esc(other.name)} · ${esc(other.phone || "未填写")}</option>`
+          : available.map(targetOption).join("");
+        const initialType = relation?.type === "role" ? "role" : "peer";
+        const peerLabel = relation?.type === "peer" ? relation.label : "";
+        const personIsA = !relation || person.id === relation.a;
+        const forwardLabel = relation?.type === "role"
+          ? (personIsA ? relation.forwardLabel : relation.reverseLabel)
+          : "";
+        const reverseLabel = relation?.type === "role"
+          ? (personIsA ? relation.reverseLabel : relation.forwardLabel)
+          : "";
         const body = `<form class="modal-form" id="relation-form" novalidate>
           <label class="form-field">
             <span>关联档案</span>
-            <select name="target">${options}</select>
+            <select name="target" ${isEdit ? "disabled" : ""}>${options}</select>
           </label>
           <div class="form-field">
             <span>关系类型</span>
             <div class="segmented" role="radiogroup" aria-label="关系类型">
               <label class="segment">
-                <input type="radio" name="relationType" value="peer" checked>
+                <input type="radio" name="relationType" value="peer" ${initialType === "peer" ? "checked" : ""}>
                 <span class="segment-ui"><strong>对等关系</strong><small>双方称呼相同，图上为一条直线</small></span>
               </label>
               <label class="segment">
-                <input type="radio" name="relationType" value="role">
+                <input type="radio" name="relationType" value="role" ${initialType === "role" ? "checked" : ""}>
                 <span class="segment-ui"><strong>角色关系</strong><small>双方称呼不同，图上为两条弯曲弧线</small></span>
               </label>
             </div>
@@ -9316,17 +9840,17 @@
           <div class="form-dependent" data-peer-fields>
             <label class="form-field">
               <span>关系称呼</span>
-              <input name="peerLabel" type="text" maxlength="24" autocomplete="off">
+              <input name="peerLabel" type="text" maxlength="24" autocomplete="off" value="${esc(peerLabel)}">
             </label>
           </div>
           <div class="form-dependent" data-role-fields hidden>
             <label class="form-field">
               <span>正向称呼（你如何称呼对方）</span>
-              <input name="forwardLabel" type="text" maxlength="24" autocomplete="off">
+              <input name="forwardLabel" type="text" maxlength="24" autocomplete="off" value="${esc(forwardLabel)}">
             </label>
             <label class="form-field">
               <span>反向称呼（对方如何称呼你）</span>
-              <input name="reverseLabel" type="text" maxlength="24" autocomplete="off">
+              <input name="reverseLabel" type="text" maxlength="24" autocomplete="off" value="${esc(reverseLabel)}">
             </label>
           </div>
           <p class="form-error" id="relation-form-error">请输入关系称呼以继续。</p>
@@ -9336,8 +9860,8 @@
           </div>
         </form>`;
         openModalShell({
-          kicker: "NEW RELATION",
-          title: "新建关系",
+          kicker: isEdit ? "EDIT RELATION" : "NEW RELATION",
+          title: isEdit ? "编辑关系" : "新建关系",
           bodyHtml: body,
           wide: true
         });
@@ -9355,19 +9879,28 @@
           radio.addEventListener("change", updateType);
         });
         updateType();
-        window.requestAnimationFrame(() => form.elements.target.focus());
+        window.requestAnimationFrame(() => {
+          if (!isEdit) {
+            form.elements.target.focus();
+            return;
+          }
+          if (initialType === "role") form.elements.forwardLabel.focus();
+          else form.elements.peerLabel.focus();
+        });
 
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
-          const targetId = form.elements.target.value;
+          const targetId = isEdit ? other.id : form.elements.target.value;
           const type = form.elements.relationType.value;
-          if (!targetId || targetId === person.id) {
-            setModalError(error, "请选择要关联的档案。");
-            return;
-          }
-          if (relationExists(person.id, targetId)) {
-            setModalError(error, "这段关系已存在。");
-            return;
+          if (!isEdit) {
+            if (!targetId || targetId === person.id) {
+              setModalError(error, "请选择要关联的档案。");
+              return;
+            }
+            if (relationExists(person.id, targetId)) {
+              setModalError(error, "这段关系已存在。");
+              return;
+            }
           }
           let payload;
           if (type === "peer") {
@@ -9377,33 +9910,31 @@
               form.elements.peerLabel.focus();
               return;
             }
-            payload = {
-              type: "peer",
-              a: person.id,
-              b: targetId,
-              label
-            };
+            payload = { type: "peer", label };
           } else {
-            const forwardLabel = form.elements.forwardLabel.value.trim();
-            const reverseLabel = form.elements.reverseLabel.value.trim();
-            if (!forwardLabel || !reverseLabel) {
+            const forwardInput = form.elements.forwardLabel.value.trim();
+            const reverseInput = form.elements.reverseLabel.value.trim();
+            if (!forwardInput || !reverseInput) {
               setModalError(error, "请输入正向与反向称呼以继续。");
-              (!forwardLabel ? form.elements.forwardLabel : form.elements.reverseLabel).focus();
+              (!forwardInput ? form.elements.forwardLabel : form.elements.reverseLabel).focus();
               return;
             }
+            const swap = isEdit && !personIsA;
             payload = {
               type: "role",
-              a: person.id,
-              b: targetId,
-              forwardLabel,
-              reverseLabel
+              forwardLabel: swap ? reverseInput : forwardInput,
+              reverseLabel: swap ? forwardInput : reverseInput
             };
+          }
+          if (!isEdit) {
+            payload.a = person.id;
+            payload.b = targetId;
           }
           const submitButton = form.querySelector('button[type="submit"]');
           submitButton.disabled = true;
           try {
-            await apiRequest("/api/relations", {
-              method: "POST",
+            await apiRequest(isEdit ? `/api/relations/${relation.id}` : "/api/relations", {
+              method: isEdit ? "PUT" : "POST",
               body: JSON.stringify(payload)
             });
             await loadData();
@@ -9414,8 +9945,7 @@
               renderDetailPage(fresh, { preserveScroll: true });
               window.scrollTo({ top: scrollY, behavior: "auto" });
             }
-            const other = byId.get(targetId);
-            showToast("关系已建立。");
+            showToast(isEdit ? "关系已更新。" : "关系已建立。");
           } catch (requestError) {
             setModalError(error, requestError.message || "保存失败，请稍后重试。");
             if (document.body.contains(submitButton)) submitButton.disabled = false;
@@ -9627,7 +10157,7 @@
           updateNav("people");
           const person = byId.get(parsed.id);
           if (person) {
-            state.expandedSections = new Set(["contact"]);
+            state.expandedSections = new Set();
             document.title = `Profiles · ${person.name}`;
             renderDetailPage(person);
           } else {

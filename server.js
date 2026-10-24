@@ -1,6 +1,8 @@
 "use strict";
 
+const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const express = require("express");
 const { Solar } = require("lunar-javascript");
 const areaData = require("china-area-data");
@@ -8,9 +10,13 @@ const db = require("./database");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const dataDir = path.join(__dirname, "data");
+const photoDir = path.join(dataDir, "media", "photos");
+
+fs.mkdirSync(photoDir, { recursive: true });
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 const REGION_NAMES = new Map();
 for (const children of Object.values(areaData)) {
@@ -21,7 +27,7 @@ for (const children of Object.values(areaData)) {
 
 const PERSON_COLUMNS = `
   id, name, gender, birth_date, phone, email, id_card, note,
-  contacts, avatar, socials, addresses, interests, custom_fields
+  contacts, avatar, socials, addresses, companies, photos, interests, custom_fields
 `;
 
 const CUSTOM_FIELD_TARGETS = new Set([
@@ -117,22 +123,6 @@ function parseIdCardDetails(value) {
   };
 }
 
-let currentZodiacCache = { key: "", value: "" };
-
-function currentZodiac() {
-  const now = new Date();
-  const key = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-  if (currentZodiacCache.key !== key) {
-    try {
-      const solar = Solar.fromYmd(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      currentZodiacCache = { key, value: solar.getLunar().getYearShengXiao() };
-    } catch {
-      currentZodiacCache = { key, value: "" };
-    }
-  }
-  return currentZodiacCache.value;
-}
-
 function birthMeta(birthDate) {
   if (!isValidIsoBirthDate(birthDate)) return {};
   const [year, month, day] = birthDate.split("-").map(Number);
@@ -141,10 +131,9 @@ function birthMeta(birthDate) {
     const lunar = solar.getLunar();
     const zodiac = lunar.getYearShengXiao();
     return {
-      lunarBirthday: `农历${lunar.getYearInGanZhi()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,
+      lunarBirthday: `农历${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`,
       zodiac,
-      constellation: `${solar.getXingZuo()}座`,
-      isBenmingNian: Boolean(zodiac && zodiac === currentZodiac())
+      constellation: `${solar.getXingZuo()}座`
     };
   } catch {
     return {};
@@ -219,11 +208,63 @@ function sanitizeAddresses(value) {
     .filter((item) => item && typeof item === "object")
     .slice(0, 100)
     .map((item) => ({
-      kind: cleanString(item.kind, 60) || "住址",
+      kind: cleanString(item.kind, 60),
       note: cleanString(item.note, 200),
       text: cleanString(item.text, 500)
     }))
     .filter((item) => item.text);
+}
+
+function sanitizeCompanies(value) {
+  return parseJsonArray(value)
+    .filter((item) => item && typeof item === "object")
+    .slice(0, 100)
+    .map((item) => ({
+      name: cleanString(item.name, 200),
+      role: cleanString(item.role, 80),
+      creditCode: cleanString(item.creditCode, 40).toUpperCase(),
+      note: cleanString(item.note, 500)
+    }))
+    .filter((item) => item.name);
+}
+
+const PHOTO_NAME_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function sanitizePhotos(value) {
+  return parseJsonArray(value)
+    .filter((item) => typeof item === "string" && PHOTO_NAME_PATTERN.test(item))
+    .slice(0, 200);
+}
+
+function decodePhotoDataUrl(value, maxBytes) {
+  if (typeof value !== "string") return null;
+  const match = /^data:image\/jpeg;base64,([a-zA-Z0-9+/=]+)$/.exec(value);
+  if (!match) return null;
+  const buffer = Buffer.from(match[1], "base64");
+  if (!buffer.length || buffer.length > maxBytes) return null;
+  if (buffer[0] !== 0xff || buffer[1] !== 0xd8 || buffer[2] !== 0xff) return null;
+  return buffer;
+}
+
+function writePhotoFile(filePath, buffer) {
+  const tempPath = `${filePath}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, buffer);
+    fs.renameSync(tempPath, filePath);
+  } catch (error) {
+    try {
+      fs.rmSync(tempPath, { force: true });
+    } catch {}
+    throw error;
+  }
+}
+
+function removePhotoFiles(name) {
+  for (const suffix of [".jpg", "-thumb.jpg"]) {
+    try {
+      fs.rmSync(path.join(photoDir, `${name}${suffix}`), { force: true });
+    } catch {}
+  }
 }
 
 function sanitizeInterests(value) {
@@ -272,6 +313,8 @@ function normalizePersonInput(input = {}, fallback = {}) {
     avatar: sanitizeAvatar(pick("avatar")),
     socials: sanitizeSocials(pick("socials")),
     addresses: sanitizeAddresses(pick("addresses")),
+    companies: sanitizeCompanies(pick("companies")),
+    photos: sanitizePhotos(pick("photos")),
     interests: sanitizeInterests(pick("interests")),
     customFields: sanitizeCustomFields(pick("customFields"))
   };
@@ -307,6 +350,8 @@ function rowToPerson(row) {
     avatar: row.avatar || null,
     socials,
     addresses,
+    companies: sanitizeCompanies(row.companies),
+    photos: sanitizePhotos(row.photos),
     interests: parseJsonArray(row.interests),
     customFields: parseJsonArray(row.custom_fields),
     ...birthDetails,
@@ -364,10 +409,10 @@ function relationPairExists(personAId, personBId, excludedId = null) {
 const insertPerson = db.prepare(`
   INSERT INTO people (
     name, gender, birth_date, phone, email, id_card, note,
-    contacts, avatar, socials, addresses, interests, custom_fields
+    contacts, avatar, socials, addresses, companies, photos, interests, custom_fields
   ) VALUES (
     @name, @gender, @birthDate, @phone, @email, @idCard, @note,
-    @contacts, @avatar, @socials, @addresses, @interests, @customFields
+    @contacts, @avatar, @socials, @addresses, @companies, @photos, @interests, @customFields
   )
 `);
 
@@ -384,6 +429,8 @@ const updatePerson = db.prepare(`
     avatar = @avatar,
     socials = @socials,
     addresses = @addresses,
+    companies = @companies,
+    photos = @photos,
     interests = @interests,
     custom_fields = @customFields
   WHERE id = @id
@@ -403,6 +450,8 @@ function personDbParams(person, id = null) {
     avatar: person.avatar,
     socials: JSON.stringify(person.socials),
     addresses: JSON.stringify(person.addresses),
+    companies: JSON.stringify(person.companies),
+    photos: JSON.stringify(person.photos),
     interests: JSON.stringify(person.interests),
     customFields: JSON.stringify(person.customFields)
   };
@@ -466,6 +515,64 @@ app.put("/api/people/:id", (req, res) => {
   }
 });
 
+app.post("/api/people/:id/photos", (req, res) => {
+  try {
+    const existing = getPersonRow(req.params.id);
+    if (!existing) return res.status(404).json({ error: "未找到该档案。" });
+
+    const photos = sanitizePhotos(rowToPerson(existing).photos);
+    if (photos.length >= 200) {
+      return res.status(400).json({ error: "照片数量已达上限。" });
+    }
+    const display = decodePhotoDataUrl(req.body?.display, 6 * 1024 * 1024);
+    const thumb = decodePhotoDataUrl(req.body?.thumb, 1 * 1024 * 1024);
+    if (!display || !thumb) {
+      return res.status(400).json({ error: "图片数据无效。" });
+    }
+
+    const name = crypto.randomUUID();
+    const displayPath = path.join(photoDir, `${name}.jpg`);
+    const thumbPath = path.join(photoDir, `${name}-thumb.jpg`);
+    try {
+      writePhotoFile(displayPath, display);
+      writePhotoFile(thumbPath, thumb);
+      photos.push(name);
+      db.prepare("UPDATE people SET photos = ? WHERE id = ?").run(JSON.stringify(photos), existing.id);
+    } catch (error) {
+      removePhotoFiles(name);
+      throw error;
+    }
+
+    res.status(201).json({ photos });
+  } catch (error) {
+    console.error("POST /api/people/:id/photos failed:", error);
+    res.status(500).json({ error: "照片保存失败，请稍后重试。" });
+  }
+});
+
+app.delete("/api/people/:id/photos/:name", (req, res) => {
+  try {
+    const existing = getPersonRow(req.params.id);
+    if (!existing) return res.status(404).json({ error: "未找到该档案。" });
+
+    const name = String(req.params.name || "");
+    if (!PHOTO_NAME_PATTERN.test(name)) {
+      return res.status(400).json({ error: "照片标识无效。" });
+    }
+    const photos = sanitizePhotos(rowToPerson(existing).photos);
+    const index = photos.indexOf(name);
+    if (index === -1) return res.status(404).json({ error: "未找到该照片。" });
+
+    photos.splice(index, 1);
+    db.prepare("UPDATE people SET photos = ? WHERE id = ?").run(JSON.stringify(photos), existing.id);
+    removePhotoFiles(name);
+    res.json({ photos });
+  } catch (error) {
+    console.error("DELETE /api/people/:id/photos/:name failed:", error);
+    res.status(500).json({ error: "照片删除失败，请稍后重试。" });
+  }
+});
+
 app.delete("/api/people/:id", (req, res) => {
   try {
     const existing = getPersonRow(req.params.id);
@@ -479,7 +586,9 @@ app.delete("/api/people/:id", (req, res) => {
       deleteRelations.run(personId, personId);
       deletePerson.run(personId);
     });
+    const photos = sanitizePhotos(existing.photos);
     removePerson(existing.id);
+    photos.forEach(removePhotoFiles);
     res.json({ ok: true, id: String(existing.id) });
   } catch (error) {
     console.error("DELETE /api/people/:id failed:", error);
@@ -542,6 +651,39 @@ app.post("/api/relations", (req, res) => {
   }
 });
 
+app.put("/api/relations/:id", (req, res) => {
+  try {
+    const existing = getRelationRow(req.params.id);
+    if (!existing) return res.status(404).json({ error: "未找到该关系。" });
+
+    const type = req.body?.type === "role" ? "role" : "peer";
+    let label = null;
+    let forwardLabel = null;
+    let reverseLabel = null;
+    if (type === "peer") {
+      label = cleanString(req.body?.label, 80);
+      if (!label) return res.status(400).json({ error: "请输入关系称呼以继续。" });
+    } else {
+      forwardLabel = cleanString(req.body?.forwardLabel, 80);
+      reverseLabel = cleanString(req.body?.reverseLabel, 80);
+      if (!forwardLabel || !reverseLabel) {
+        return res.status(400).json({ error: "请输入正向与反向称呼以继续。" });
+      }
+    }
+
+    db.prepare(`
+      UPDATE relations
+      SET type = ?, label = ?, forward_label = ?, reverse_label = ?
+      WHERE id = ?
+    `).run(type, label, forwardLabel, reverseLabel, existing.id);
+
+    res.json(rowToRelation(getRelationRow(existing.id)));
+  } catch (error) {
+    console.error("PUT /api/relations/:id failed:", error);
+    res.status(500).json({ error: "更新关系失败，请稍后重试。" });
+  }
+});
+
 app.delete("/api/relations/:id", (req, res) => {
   try {
     const existing = getRelationRow(req.params.id);
@@ -559,6 +701,12 @@ app.use("/api", (req, res) => {
 });
 
 const publicDir = path.join(__dirname, "public");
+app.use("/media", express.static(path.join(dataDir, "media"), {
+  index: false,
+  dotfiles: "deny",
+  maxAge: "30d",
+  immutable: true
+}));
 app.use("/fonts", express.static(path.join(publicDir, "fonts"), { maxAge: "30d", immutable: true }));
 app.use(express.static(publicDir));
 
@@ -566,12 +714,15 @@ app.use((error, req, res, next) => {
   if (error instanceof SyntaxError && "body" in error) {
     return res.status(400).json({ error: "请求内容格式不正确。" });
   }
+  if (error?.type === "entity.too.large") {
+    return res.status(413).json({ error: "上传内容过大。" });
+  }
   console.error("Unhandled server error:", error);
   res.status(500).json({ error: "服务暂时不可用，请稍后重试。" });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`Profiles archive running at http://localhost:${PORT}`);
+const server = app.listen(PORT, "127.0.0.1", () => {
+  console.log(`Profiles archive running at http://127.0.0.1:${PORT}`);
 });
 
 function shutdown() {

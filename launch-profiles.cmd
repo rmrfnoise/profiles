@@ -43,9 +43,9 @@ pause
 exit /b 1
 
 :start
-curl.exe -s -o NUL --max-time 1 http://localhost:3000
+curl.exe -s -o NUL --max-time 1 http://127.0.0.1:3000
 if errorlevel 1 start "Profiles Server" /min "%NODE_EXE%" "server.js"
 
 if /I "%PROFILES_NO_BROWSER%"=="1" exit /b 0
-start "" "http://localhost:3000"
+start "" "http://127.0.0.1:3000"
 endlocal
